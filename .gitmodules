@@ -1,3 +1,9 @@
-[submodule "Thirdparty\\yaml-cpp"]
-	path = Thirdparty\\yaml-cpp
+[submodule "Thirdparty/json"]
+	path = Thirdparty/json
+	url = https://github.com/nlohmann/json
+[submodule "Thirdparty/cpr"]
+	path = Thirdparty/cpr
+	url = https://github.com/whoshuu/cpr
+[submodule "Thirdparty/yaml-cpp"]
+	path = Thirdparty/yaml-cpp
 	url = https://github.com/jbeder/yaml-cpp
