@@ -1,0 +1,55 @@
+name: latest
+
+on:
+  push:
+    paths-ignore:
+      - '*.md'
+
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v1
+
+      - name: MSBuild (x64)
+        run: msbuild TVTestAnnictRecorder.sln -property:Configuration="Release" -property:Platform="x64" -m
+
+      - name: MSBuild (x86)
+        run: msbuild TVTestAnnictRecorder.sln -property:Configuration="Release" -property:Platform="x86" -m
+
+      - name: Prepare Artifacts
+        shell: powershell
+        run: |
+          New-Item -Path Artifacts -ItemType Directory
+          New-Item -Path Artifacts/x64 -ItemType Directory
+          New-Item -Path Artifacts/x86 -ItemType Directory
+          Copy-Item -Path x64/Release/AnnictRecorder.tvtp -Destination Artifacts/x64/
+          Copy-Item -Path Release/AnnictRecorder.tvtp -Destination Artifacts/x86/
+          Copy-Item -Path AnnictRecorder.ini -Destination Artifacts/
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: AnnictRecorder
+          if-no-files-found: error
+          path: Artifacts/
+
+      - name: Create Release
+        shell: powershell
+        if: startsWith(github.ref, 'refs/tags/')
+        run: Compress-Archive -Path Artifacts/* -DestinationPath AnnictRecorder.zip
+
+      - name: Upload Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: AnnictRecorder.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
