@@ -1,9 +1,9 @@
-#pragma once
+ï»¿#pragma once
 
 #include "pch.h"
 
 /*
- * SYSTEMTIME \‘¢‘Ì‚ğ time_t ‚É•ÏŠ·‚·‚é
+ * SYSTEMTIME æ§‹é€ ä½“ã‚’ time_t ã«å¤‰æ›ã™ã‚‹
  */
 inline time_t SystemTime2Timet(const SYSTEMTIME& st)
 {
@@ -15,21 +15,20 @@ inline time_t SystemTime2Timet(const SYSTEMTIME& st)
 }
 
 /*
- * ‘SŠp ¨ ”¼Šp‚É•ÏŠ·‚·‚é
+ * å…¨è§’ â†’ åŠè§’ã«å¤‰æ›ã™ã‚‹
  * http://yamatyuu.net/computer/program/zen2han/index.html
  */
 inline void Full2Half(wchar_t* source)
 {
     for (auto* p = source; *p; p++)
     {
-        // ‘SŠp”š‰pš‹L†
+        // å…¨è§’æ•°å­—è‹±å­—è¨˜å·
         if (0xff01 <= *p && *p <= 0xff5d)
         {
             *p -= 0xff00 - 0x20;
         }
-        // ‘SŠpƒXƒy[ƒX
-        // C4066: characters beyond first in wide-character constant ignored
-        else if (*p == L'@')
+        // å…¨è§’ã‚¹ãƒšãƒ¼ã‚¹
+        else if (*p == L'ã€€')
         {
             *p = L' ';
         }
