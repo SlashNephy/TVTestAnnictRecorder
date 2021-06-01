@@ -28,6 +28,7 @@ inline void Full2Half(wchar_t* source)
             *p -= 0xff00 - 0x20;
         }
         // 全角スペース
+        // C4066: characters beyond first in wide-character constant ignored
         else if (*p == L'　')
         {
             *p = L' ';
