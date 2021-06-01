@@ -1,19 +1,20 @@
 ﻿#include "pch.h"
 
-#include <ctime>
-#include <Shlwapi.h>
-#pragma comment(lib, "shlwapi.lib")
+#include "SayaApi.h"
+#include "Title.h"
 
-constexpr auto TVTestAnnictRecorderWindowClass = L"TVTestAnnictRecorder Window";
-constexpr auto TVTestAnnictRecorderTimerId = 1;
-constexpr auto TVTestAnnictRecorderTimerIntervalMs = 5000;
-constexpr auto AnnictTokenMaxLength = 32;
+constexpr auto AnnictRecorderWindowClass = L"AnnictRecorder Window";
+constexpr auto AnnictRecorderTimerId = 1;
+constexpr auto AnnictRecorderTimerIntervalMs = 60 * 1000;
+constexpr auto AnnictTokenMaxLength = 64;
 
 class CAnnictRecorderPlugin final : public TVTest::CTVTestPlugin
 {
-    TCHAR m_iniFileName[MAX_PATH]{};
-    HWND m_hwnd{};
+    wchar_t m_iniFileName[MAX_PATH]{};
+    HWND m_hWnd{};
     TVTest::ProgramInfo m_lastProgram{};
+    YAML::Node m_definitions{};
+    std::mutex m_mutex;
 
     wchar_t m_annictToken[AnnictTokenMaxLength]{};
     bool m_isReady = false;
@@ -23,7 +24,7 @@ class CAnnictRecorderPlugin final : public TVTest::CTVTestPlugin
     void CheckCurrentProgram();
 
     static LRESULT CALLBACK EventCallback(UINT Event, LPARAM lParam1, LPARAM lParam2, void* pClientData);
-    static LRESULT CALLBACK WndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
+    static LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
 public:
     /*
@@ -31,6 +32,8 @@ public:
      */
     DWORD GetVersion() override
     {
+        // 最低要件
+        // どのバージョンの TVTest でも動作する
         return TVTEST_PLUGIN_VERSION_(0, 0, 1);
     }
 
@@ -66,18 +69,18 @@ public:
         wc.hCursor = nullptr;
         wc.hbrBackground = nullptr;
         wc.lpszMenuName = nullptr;
-        wc.lpszClassName = TVTestAnnictRecorderWindowClass;
+        wc.lpszClassName = AnnictRecorderWindowClass;
         if (::RegisterClass(&wc) == 0)
         {
             return false;
         }
 
         // ウィンドウの作成
-        m_hwnd = ::CreateWindowEx(
-            0, TVTestAnnictRecorderWindowClass, nullptr, WS_POPUP,
+        m_hWnd = ::CreateWindowEx(
+            0, AnnictRecorderWindowClass, nullptr, WS_POPUP,
             0, 0, 0, 0, HWND_MESSAGE, nullptr, g_hinstDLL, this
         );
-        if (m_hwnd == nullptr)
+        if (m_hWnd == nullptr)
         {
             return false;
         }
@@ -91,8 +94,8 @@ public:
     bool Finalize() override
     {
         // タイマー・ウィンドウの破棄
-        ::KillTimer(m_hwnd, TVTestAnnictRecorderTimerId);
-        ::DestroyWindow(m_hwnd);
+        ::KillTimer(m_hWnd, AnnictRecorderTimerId);
+        ::DestroyWindow(m_hWnd);
 
         return true;
     }
@@ -116,6 +119,11 @@ void CAnnictRecorderPlugin::LoadConfig()
 
     ::GetPrivateProfileString(L"Annict", L"Token", L"", m_annictToken, AnnictTokenMaxLength, m_iniFileName);
 
+    m_definitions = Saya::LoadSayaDefinitions();
+    m_pApp->AddLog(
+        std::format(L"saya のチャンネル定義ファイルを読み込みました。(チャンネル数: {})", m_definitions["channels"].size()).c_str()
+    );
+
     m_isReady = wcslen(m_annictToken) > 0;
 }
 
@@ -129,25 +137,51 @@ void CAnnictRecorderPlugin::CheckCurrentProgram()
         return;
     }
 
-    // Program
-    TVTest::ProgramInfo Program{};
-    wchar_t pszEventName[128];
-    Program.pszEventName = pszEventName;
-    Program.MaxEventName = _countof(pszEventName);
-    wchar_t pszEventText[128];
-    Program.pszEventText = pszEventText;
-    Program.MaxEventText = _countof(pszEventText);
-    wchar_t pszEventExtText[128];
-    Program.pszEventExtText = pszEventExtText;
-    Program.MaxEventExtText = _countof(pszEventExtText);
-
-    if (!m_pApp->GetCurrentProgramInfo(&Program))
+    // ロック
     {
-        return;
-    }
+        std::lock_guard lock(m_mutex);
 
-    // TODO
-    m_lastProgram = Program;
+        // ProgramInfo
+        TVTest::ProgramInfo Program{};
+        wchar_t pszEventName[64]{};
+        Program.pszEventName = pszEventName;
+        Program.MaxEventName = _countof(pszEventName);
+        Program.pszEventText = nullptr;
+        Program.pszEventExtText = nullptr;
+        if (!m_pApp->GetCurrentProgramInfo(&Program) || Program.EventID == m_lastProgram.EventID)
+        {
+            return;
+        }
+
+        // ServiceInfo
+        TVTest::ServiceInfo Service{};
+        if (!m_pApp->GetServiceInfo(0, &Service))
+        {
+            return;
+        }
+
+        // ChannelType
+        Saya::ChannelType TuningSpace;
+        if (wchar_t tuningSpaceName[8]{}; m_pApp->GetTuningSpaceName(m_pApp->GetTuningSpace(), tuningSpaceName, 8) != 0)
+        {
+            TuningSpace = Saya::GetSayaChannelTypeByName(tuningSpaceName);
+        }
+        else
+        {
+            return;
+        }
+
+        // YAML::Node
+        const auto definition = Saya::FindSayaChannel(m_definitions, TuningSpace, Service.ServiceID);
+        if (!definition.has_value())
+        {
+            return;
+        }
+        
+        HandleProgram(Program, Service, TuningSpace, definition.value());
+
+        m_lastProgram = Program;
+    }
 }
 
 /*
@@ -165,7 +199,6 @@ LRESULT CALLBACK CAnnictRecorderPlugin::EventCallback(const UINT Event, const LP
         if (pThis->m_isEnabled)
         {
             pThis->LoadConfig();
-
             pThis->CheckCurrentProgram();
         }
 
@@ -187,7 +220,7 @@ LRESULT CALLBACK CAnnictRecorderPlugin::EventCallback(const UINT Event, const LP
  * ウィンドウプロシージャ
  * タイマー処理を行う
  */
-LRESULT CALLBACK CAnnictRecorderPlugin::WndProc(const HWND hwnd, const UINT uMsg, const WPARAM wParam, const LPARAM lParam)
+LRESULT CALLBACK CAnnictRecorderPlugin::WndProc(const HWND hWnd, const UINT uMsg, const WPARAM wParam, const LPARAM lParam)
 {
     switch (uMsg)
     {
@@ -196,16 +229,16 @@ LRESULT CALLBACK CAnnictRecorderPlugin::WndProc(const HWND hwnd, const UINT uMsg
             auto* const pcs = reinterpret_cast<LPCREATESTRUCT>(lParam);
             auto* pThis = static_cast<CAnnictRecorderPlugin*>(pcs->lpCreateParams);
 
-            ::SetWindowLongPtr(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(pThis));
-            ::SetTimer(hwnd, TVTestAnnictRecorderTimerId, TVTestAnnictRecorderTimerIntervalMs, nullptr);
+            ::SetWindowLongPtr(hWnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(pThis));
+            ::SetTimer(hWnd, AnnictRecorderTimerId, AnnictRecorderTimerIntervalMs, nullptr);
         }
 
         return true;
 
     case WM_TIMER:
-        if (wParam == TVTestAnnictRecorderTimerId)
+        if (wParam == AnnictRecorderTimerId)
         {
-            auto* pThis = reinterpret_cast<CAnnictRecorderPlugin*>(::GetWindowLongPtr(hwnd, GWLP_USERDATA));
+            auto* pThis = reinterpret_cast<CAnnictRecorderPlugin*>(::GetWindowLongPtr(hWnd, GWLP_USERDATA));
 
             pThis->CheckCurrentProgram();
         }
@@ -213,6 +246,6 @@ LRESULT CALLBACK CAnnictRecorderPlugin::WndProc(const HWND hwnd, const UINT uMsg
         return false;
 
     default:
-        return ::DefWindowProc(hwnd, uMsg, wParam, lParam);
+        return ::DefWindowProc(hWnd, uMsg, wParam, lParam);
     }
 }
