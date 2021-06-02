@@ -28,6 +28,7 @@ jobs:
       - name: Setup vcpkg
         uses: lukka/run-vcpkg@v7
         with:
+          setupOnly: true
           appendedCacheKey: ${{ hashFiles( '**/vcpkg.json' ) }}
           vcpkgTriplet: ${{ matrix.platform }}-windows
 
