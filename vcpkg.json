@@ -1,0 +1,13 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg/master/scripts/vcpkg.schema.json",
+  "name": "tvtest-annict-recorder-plugin",
+  "version-string": "0.0.1",
+  "port-version": 6,
+  "homepage": "https://github.com/SlashNephy/TVTestAnnictRecorder",
+  "dependencies": [
+    "cpr",
+    "yaml-cpp",
+    "nlohmann-json",
+    "pugixml"
+  ]
+}

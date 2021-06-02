@@ -11,6 +11,13 @@ jobs:
   build:
     runs-on: windows-latest
 
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - x64
+          - x86
+
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v2
@@ -20,38 +27,38 @@ jobs:
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v1
 
-      - name: MSBuild (x64)
-        run: msbuild TVTestAnnictRecorder.sln -property:Configuration="Release" -property:Platform="x64" -m
+      - name: Setup vcpkg
+        uses: lukka/run-vcpkg@v6
+        with:
+          appendedCacheKey: ${{ hashFiles( '**/vcpkg.json' ) }}
+          vcpkgTriplet: ${{ matrix.platform }}-windows
 
-      # - name: MSBuild (x86)
-      #   run: msbuild TVTestAnnictRecorder.sln -property:Configuration="Release" -property:Platform="x86" -m
+      - name: MSBuild
+        run: msbuild TVTestAnnictRecorder.sln -property:Configuration="Release" -property:Platform="${{ matrix.platform }}" -m
 
       - name: Prepare Artifacts
         shell: powershell
         run: |
           New-Item -Path Artifacts -ItemType Directory
-          New-Item -Path Artifacts/x64 -ItemType Directory
-          New-Item -Path Artifacts/x86 -ItemType Directory
-          Copy-Item -Path x64/Release/AnnictRecorder.tvtp -Destination Artifacts/x64/
-          Copy-Item -Path Release/AnnictRecorder.tvtp -Destination Artifacts/x86/
+          Copy-Item -Path ${{ matrix.platform }}/Release/AnnictRecorder.tvtp -Destination Artifacts/
           Copy-Item -Path AnnictRecorder.ini -Destination Artifacts/
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v2
         with:
-          name: AnnictRecorder
+          name: AnnictRecorder_${{ matrix.platform }}
           if-no-files-found: error
           path: Artifacts/
 
       - name: Create Release
         shell: powershell
         if: startsWith(github.ref, 'refs/tags/')
-        run: Compress-Archive -Path Artifacts/* -DestinationPath AnnictRecorder.zip
+        run: Compress-Archive -Path Artifacts/* -DestinationPath AnnictRecorder_${{ matrix.platform }}.zip
 
       - name: Upload Release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: AnnictRecorder.zip
+          files: AnnictRecorder_${{ matrix.platform }}.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
