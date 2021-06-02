@@ -189,6 +189,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="Common.h" />
+    <ClInclude Include="Debug.h" />
     <ClInclude Include="SayaApi.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="SyoboCalApi.h" />

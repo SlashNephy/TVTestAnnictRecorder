@@ -16,6 +16,7 @@ inline void HandleProgram(
     const auto rawSyoboCalId = ChannelDefinition["syobocalId"];
     if (!rawSyoboCalId.IsDefined())
     {
+        PrintDebug(L"しょぼいカレンダーに登録されていないチャンネルです。無視します。");
         return;
     }
 

@@ -17,6 +17,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <format>
+#include <iostream>
 #include <optional>
 #include <regex>
 #include <string>
