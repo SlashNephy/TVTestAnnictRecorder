@@ -29,8 +29,9 @@ jobs:
         uses: lukka/run-vcpkg@v7
         with:
           setupOnly: true
-          appendedCacheKey: ${{ hashFiles( '**/vcpkg.json' ) }}
+          vcpkgGitCommitId: 5568f110b509a9fd90711978a7cb76bae75bb092
           vcpkgTriplet: ${{ matrix.platform }}-windows
+          appendedCacheKey: ${{ hashFiles( '**/vcpkg.json' ) }}
 
       - name: MSBuild
         run: msbuild TVTestAnnictRecorder.sln -property:Configuration="Release" -property:Platform="${{ matrix.platform }}" -m
