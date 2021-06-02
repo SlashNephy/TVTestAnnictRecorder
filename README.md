@@ -1,5 +1,8 @@
 # TVTestAnnictRecorder
 
+[![GitHub Workflow Status](https://img.shields.io/github/workflow/status/SlashNephy/TVTestAnnictRecorder/latest?style=flat-square)](https://github.com/SlashNephy/TVTestAnnictRecorder/actions)
+[![GitHub release (latest by date)](https://img.shields.io/github/v/release/SlashNephy/TVTestAnnictRecorder?style=flat-square)](https://github.com/SlashNephy/TVTestAnnictRecorder/releases)
+
 📝 [WIP] 視聴したアニメの視聴記録を自動で Annict に送信する TVTest プラグイン
 
 - TVTest から現在の番組を取得
@@ -8,40 +11,16 @@
 - しょぼいカレンダー ID (TID) から Annict に問い合わせ (← ｲﾏｺｺ)
 - Annict に視聴記録をつける
 
-## Build (Dependencies)
+## Build
+
+依存関係は [vcpkg](https://github.com/microsoft/vcpkg) で管理されています。
 
 ```bat
-git clone --recursive https://github.com/SlashNephy/TVTestAnnictRecorder
+vcpkg integrate install
 
-cd .\TVTestAnnictRecorder\Thirdparty\yaml-cpp
-mkdir build
-cd .\build
-cmake ..
-msbuild YAML_CPP.sln -property:Platform="x64" -m
-
-cd .\TVTestAnnictRecorder\Thirdparty\json
-mkdir build
-cd .\build
-cmake ..
-msbuild nlohmann_json.sln -property:Platform="x64" -m
-
-cd C:\
-git clone https://github.com/Microsoft/vcpkg.git
-
-cd .\vcpkg
-.\bootstrap-vcpkg.bat
-.\vcpkg integrate install
-.\vcpkg install cpr
-```
-
-## Build (Plugin)
-
-依存関係のライブラリはビルド済です。上記のビルドを行うことなくプラグインをビルドできます。  
-現在 x64 ビルドのみサポートしています。
-
-```bat
-git clone https://github.com/SlashNephy/TVTestAnnictRecorder
-
-cd .\TVTestAnnictRecorder
 msbuild TVTestAnnictRecorder.sln -property:Configuration="Release" -property:Platform="x64" -m
 ```
+
+## License
+
+TVTestAnnictRecorder is provided under the MIT license.

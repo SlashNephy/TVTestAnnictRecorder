@@ -38,7 +38,7 @@ jobs:
         run: vcpkg integrate install
 
       - name: MSBuild
-        run: msbuild TVTestAnnictRecorder.sln -property:Configuration="Release" -property:Platform="${{ matrix.platform }}" -m
+        run: msbuild TVTestAnnictRecorder.sln -property:Configuration="Release" -property:Platform="${{ matrix.platform }}" -m -maxcpucount
 
       - name: Prepare Artifacts
         shell: powershell
