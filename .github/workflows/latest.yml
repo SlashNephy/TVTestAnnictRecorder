@@ -33,6 +33,10 @@ jobs:
           vcpkgTriplet: ${{ matrix.platform }}-windows
           appendedCacheKey: ${{ hashFiles( '**/vcpkg.json' ) }}
 
+      - name: Install MSBuild integration
+        shell: powershell
+        run: vcpkg integrate install
+
       - name: MSBuild
         run: msbuild TVTestAnnictRecorder.sln -property:Configuration="Release" -property:Platform="${{ matrix.platform }}" -m
 
