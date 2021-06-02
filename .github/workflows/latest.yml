@@ -21,14 +21,12 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v2
-        with:
-          submodules: recursive
 
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v1
 
       - name: Setup vcpkg
-        uses: lukka/run-vcpkg@v6
+        uses: lukka/run-vcpkg@v7
         with:
           appendedCacheKey: ${{ hashFiles( '**/vcpkg.json' ) }}
           vcpkgTriplet: ${{ matrix.platform }}-windows
