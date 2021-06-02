@@ -9,6 +9,7 @@
 // Windows ヘッダーからほとんど使用されていない部分を除外する
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
+#pragma comment(lib, "User32.Lib")
 
 #include <combaseapi.h>
 #include <cstdint>
@@ -26,9 +27,24 @@
 
 #include "cpr/cpr.h"
 #pragma comment(lib, "cpr.lib")
+#ifdef _DEBUG
+#pragma comment(lib, "libcurl-d.lib")
+#pragma comment(lib, "zlibd.lib")
+#else
+#pragma comment(lib, "libcurl.lib")
+#pragma comment(lib, "zlib.lib")
+#endif
+#pragma comment(lib, "Ws2_32.Lib")
+#pragma comment(lib, "Wldap32.Lib")
+#pragma comment(lib, "Crypt32.Lib")
+#pragma comment(lib, "AdvAPI32.Lib")
 
 #include "yaml-cpp/yaml.h"
-#pragma comment(lib, "yaml-cpp.lib")
+#ifdef _DEBUG
+#pragma comment(lib, "libyaml-cppmdd.lib")
+#else
+#pragma comment(lib, "libyaml-cppmd.lib")
+#endif
 
 #include "nlohmann/json.hpp"
 
