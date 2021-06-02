@@ -195,7 +195,6 @@
     <ClInclude Include="SyoboCalApi.h" />
     <ClInclude Include="Utils.h" />
     <ClInclude Include="Title.h" />
-    <ClInclude Include="TVTestPlugin.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Plugin.cpp" />
