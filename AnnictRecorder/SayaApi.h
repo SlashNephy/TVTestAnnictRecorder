@@ -40,29 +40,41 @@ namespace Saya
         throw;
     }
 
-    inline ChannelType GetSayaChannelTypeByName(const std::wstring& name)
+    inline std::optional<ChannelType> GetSayaChannelTypeByName(const std::wstring& name)
     {
         if (name == L"GR")
         {
-            return ChannelType::GR;
+            return std::optional(ChannelType::GR);
         }
-        
         if (name == L"BS")
         {
-            return ChannelType::BS;
+            return std::optional(ChannelType::BS);
         }
-
         if (name == L"CS")
         {
-            return ChannelType::CS;
+            return std::optional(ChannelType::CS);
         }
-
         if (name == L"SKY")
         {
-            return ChannelType::SKY;
+            return std::optional(ChannelType::SKY);
         }
 
-        throw;
+        return std::nullopt;
+    }
+
+    inline std::optional<ChannelType> GetSayaChannelTypeByIndex(const int index)
+    {
+        switch (index)
+        {
+        case TVTest::TUNINGSPACE_TERRESTRIAL:
+            return std::optional(ChannelType::GR);
+        case TVTest::TUNINGSPACE_BS:
+            return std::optional(ChannelType::BS);
+        case TVTest::TUNINGSPACE_110CS:
+            return std::optional(ChannelType::CS);
+        default: 
+            return std::nullopt;
+        }
     }
 
     inline std::optional<YAML::Node> FindSayaChannel(const YAML::Node& yml, const std::optional<ChannelType> targetChannelType, const WORD targetServiceId)
@@ -76,7 +88,7 @@ namespace Saya
             // ReSharper disable once CppTooWideScope
             const auto channelType = channel["type"].as<std::string>();
 
-            if (targetChannelType.has_value()  && channelType != GetNameOfSayaChannelType(targetChannelType.value()))
+            if (targetChannelType.has_value() && channelType != GetNameOfSayaChannelType(targetChannelType.value()))
             {
                 return false;
             }

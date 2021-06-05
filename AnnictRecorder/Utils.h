@@ -15,22 +15,28 @@ inline time_t SystemTime2Timet(const SYSTEMTIME& st)
 }
 
 /*
- * 全角 → 半角に変換する
- * http://yamatyuu.net/computer/program/zen2han/index.html
+ * この番組がアニメジャンルであるかどうか判定する
  */
-inline void Full2Half(wchar_t* source)
+inline bool IsAnimeGenre(const TVTest::EpgEventInfo& EpgEvent)
 {
-    for (auto* p = source; *p; p++)
+    if (EpgEvent.ContentList == nullptr)
     {
-        // 全角数字英字記号
-        if (0xff01 <= *p && *p <= 0xff5d)
+        return false;
+    }
+
+    bool result = false;
+    for (auto i = 0; i < EpgEvent.ContentListLength; i++)
+    {
+        // ReSharper disable once CppTooWideScope
+        const auto [ContentNibbleLevel1, ContentNibbleLevel2, _, __] = EpgEvent.ContentList[i];
+
+        // 「アニメ」 or 「映画」→「アニメ」
+        if (ContentNibbleLevel1 == 0x7 || (ContentNibbleLevel1 == 0x6 && ContentNibbleLevel2 == 0x2))
         {
-            *p -= 0xff00 - 0x20;
-        }
-        // 全角スペース
-        else if (*p == L'　')
-        {
-            *p = L' ';
+            result = true;
+            break;
         }
     }
+
+    return result;
 }

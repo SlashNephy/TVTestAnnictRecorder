@@ -1,23 +1,31 @@
 ﻿#include "pch.h"
 
+#include "AnnictApi.h"
 #include "Debug.h"
 #include "SayaApi.h"
-#include "Title.h"
+#include "TvtPlay.h"
+#include "Utils.h"
 
 constexpr auto AnnictRecorderWindowClass = L"AnnictRecorder Window";
-constexpr auto AnnictRecorderTimerId = 1;
-constexpr auto AnnictRecorderTimerIntervalMs = 60 * 1000;
-constexpr auto AnnictTokenMaxLength = 64;
+constexpr auto AnnictRecorderStatusItemId = WM_APP + 1;
+constexpr auto AnnictRecorderTimerId = WM_APP + 1;
+constexpr auto AnnictRecorderTimerIntervalMs = 5 * 1000;
+constexpr auto MaxEventNameLength = 64;
 
 class CAnnictRecorderPlugin final : public TVTest::CTVTestPlugin
 {
     wchar_t m_iniFileName[MAX_PATH]{};
     HWND m_hWnd{};
-    TVTest::ProgramInfo m_lastProgram{};
     YAML::Node m_definitions{};
-    std::mutex m_mutex;
+    std::map<uint32_t, uint32_t> m_annictIds{};
+    std::map<WORD, time_t> m_watchStartTime{};
+    std::map<WORD, bool> m_recorded{};
+    Annict::CreateRecordResult m_lastRecordResult{};
+    std::mutex m_mutex{};
 
-    wchar_t m_annictToken[AnnictTokenMaxLength]{};
+    char m_annictToken[MaxAnnictTokenLength]{};
+    int m_recordThresholdPercent = 20;
+    bool m_dryRun = false;
     bool m_isReady = false;
     bool m_isEnabled = false;
 
@@ -35,8 +43,9 @@ public:
      */
     DWORD GetVersion() override
     {
-        // TVTest API 0.0.12 以上
-        return TVTEST_PLUGIN_VERSION_(0, 0, 12);
+        // TVTest API 0.0.14 以上
+        // (TVTest ver.0.9.0 or later)
+        return TVTEST_PLUGIN_VERSION_(0, 0, 14);
     }
 
     /*
@@ -45,6 +54,7 @@ public:
     bool GetPluginInfo(TVTest::PluginInfo* pInfo) override
     {
         pInfo->Type = TVTest::PLUGIN_TYPE_NORMAL;
+        pInfo->Flags = 0;
         pInfo->pszPluginName = L"Annict Recorder";
         pInfo->pszCopyright = L"© 2021 Nep";
         pInfo->pszDescription = L"視聴したアニメの視聴記録を自動で Annict に送信します。";
@@ -75,6 +85,7 @@ public:
         wc.lpszClassName = AnnictRecorderWindowClass;
         if (::RegisterClass(&wc) == 0)
         {
+            m_pApp->AddLog(L"ウィンドウクラスの登録に失敗しました。");
             return false;
         }
 
@@ -85,6 +96,25 @@ public:
         );
         if (m_hWnd == nullptr)
         {
+            m_pApp->AddLog(L"ウィンドウの作成に失敗しました。");
+            return false;
+        }
+
+        // ステータス項目の登録
+        TVTest::StatusItemInfo StatusItem{};
+        StatusItem.Size = sizeof StatusItem;
+        StatusItem.Flags = TVTest::STATUS_ITEM_FLAG_TIMERUPDATE;
+        StatusItem.Style = 0;
+        StatusItem.ID = AnnictRecorderStatusItemId;
+        StatusItem.pszIDText = L"AnnictRecorder";
+        StatusItem.pszName = L"Annict Recorder";
+        StatusItem.MinWidth = 0;
+        StatusItem.MaxWidth = -1;
+        StatusItem.DefaultWidth = TVTest::StatusItemWidthByFontSize(30);
+        StatusItem.MinHeight = 0;
+        if (!m_pApp->RegisterStatusItem(&StatusItem))
+        {
+            m_pApp->AddLog(L"ステータス項目の登録に失敗しました。");
             return false;
         }
 
@@ -117,10 +147,6 @@ TVTest::CTVTestPlugin* CreatePluginClass()
  */
 void CAnnictRecorderPlugin::Enable()
 {
-    // デバッグコンソールの初期化
-#ifdef _DEBUG
-    CreateConsole();
-#endif
 
     // 設定の読み込み
     LoadConfig();
@@ -131,10 +157,6 @@ void CAnnictRecorderPlugin::Enable()
  */
 void CAnnictRecorderPlugin::Disable()
 {
-    // デバッグコンソールの破棄
-#ifdef _DEBUG
-    DestroyConsole();
-#endif
 }
 
 /*
@@ -145,14 +167,24 @@ void CAnnictRecorderPlugin::LoadConfig()
     ::GetModuleFileName(g_hinstDLL, m_iniFileName, MAX_PATH);
     ::PathRenameExtension(m_iniFileName, L".ini");
 
-    ::GetPrivateProfileString(L"Annict", L"Token", L"", m_annictToken, AnnictTokenMaxLength, m_iniFileName);
+    wchar_t annictTokenW[MaxAnnictTokenLength];
+    ::GetPrivateProfileString(L"Annict", L"Token", L"", annictTokenW, MaxAnnictTokenLength, m_iniFileName);
+    m_recordThresholdPercent = ::GetPrivateProfileInt(L"Record", L"ThresholdPercent", m_recordThresholdPercent, m_iniFileName);
+    m_dryRun = ::GetPrivateProfileInt(L"Record", L"DryRun", m_dryRun, m_iniFileName) > 0;
+
+    wcstombs_s(nullptr, m_annictToken, annictTokenW, MaxAnnictTokenLength - 1);
 
     m_definitions = Saya::LoadSayaDefinitions();
     m_pApp->AddLog(
         std::format(L"saya のチャンネル定義ファイルを読み込みました。(チャンネル数: {})", m_definitions["channels"].size()).c_str()
     );
 
-    m_isReady = wcslen(m_annictToken) > 0;
+    m_annictIds = Annict::LoadArmJson();
+    m_pApp->AddLog(
+        std::format(L"kawaiioverflow/arm の定義ファイルを読み込みました。(作品数: {})", m_annictIds.size()).c_str()
+    );
+
+    m_isReady = strlen(m_annictToken) > 0;
 }
 
 /*
@@ -172,86 +204,149 @@ void CAnnictRecorderPlugin::CheckCurrentProgram()
         std::lock_guard lock(m_mutex);
         PrintDebug(L"クリティカルセクションに入りました。");
 
-        // ServiceInfo
-        TVTest::ServiceInfo Service{};
-        if (!m_pApp->GetServiceInfo(0, &Service))
+        // ServiceInfo: サブチャンネルを考慮する
+        std::optional<TVTest::ServiceInfo> Service = std::nullopt;
+        for (auto i = 0; i < 3; i++)
         {
-            PrintDebug(L"サービス情報の取得に失敗しました。");
+            TVTest::ServiceInfo service{};
+            if (m_pApp->GetServiceInfo(i, &service))
+            {
+                Service = std::optional(service);
+                break;
+            }
+        }
+
+        if (!Service.has_value())
+        {
+            PrintDebug(L"サービス情報の取得に失敗しました。スキップします。");
             return;
         }
 
         // ProgramInfo
         TVTest::ProgramInfo Program{};
-        wchar_t pszEventName[64]{};
+        wchar_t pszEventName[MaxEventNameLength]{};
         Program.pszEventName = pszEventName;
         Program.MaxEventName = _countof(pszEventName);
         Program.pszEventText = nullptr;
         Program.pszEventExtText = nullptr;
+
         if (!m_pApp->GetCurrentProgramInfo(&Program))
         {
-            PrintDebug(L"番組情報の取得に失敗しました。(サービス ID: {}, サービス名: {})", Service.ServiceID, Service.szServiceName);
+            PrintDebug(L"番組情報の取得に失敗しました。スキップします。(サービス ID: {}, サービス名: {})", Service.value().ServiceID, Service.value().szServiceName);
             return;
         }
-        if (Program.EventID == m_lastProgram.EventID)
+
+        // TvtPlayHwnd
+        const auto tvtPlayHwnd = FindTvtPlayFrame();
+
+        // 記録を付ける閾値に達しているかをチェック
+        auto shouldRecord = false;
+        if (const auto duration = static_cast<double>(Program.Duration); tvtPlayHwnd)
         {
-            PrintDebug(L"前回と同じ番組です。無視します。");
+            const auto pos = GetTvtPlayPositionSec(tvtPlayHwnd);
+            const auto percent = 100.0 * pos / duration;
+            
+            shouldRecord = percent >= m_recordThresholdPercent;
+            PrintDebug(L"視聴位置 = {:.1f} %", percent);
+        }
+        else
+        {
+            time_t watchStartTime;
+            if (m_watchStartTime.contains(Program.EventID))
+            {
+                watchStartTime = m_watchStartTime[Program.EventID];
+            }
+            else
+            {
+                watchStartTime = time(nullptr);
+                m_watchStartTime[Program.EventID] = watchStartTime;
+                return;
+            }
+
+            const auto pos = time(nullptr) - watchStartTime;
+            const auto percent = 100.0 * static_cast<double>(pos) / duration;
+
+            shouldRecord = percent >= m_recordThresholdPercent;
+            PrintDebug(L"視聴位置 = {:.1f} %", percent);
         }
 
-        // EpgEventInfo
+        if (!shouldRecord)
+        {
+            PrintDebug(L"記録するための閾値 ({} %) に達していません。スキップします。", m_recordThresholdPercent);
+            return;
+        }
+        
+        if (m_recorded[Program.EventID]) {
+            PrintDebug(L"既に Annict に記録済です。スキップします。");
+            return;
+        }
+
+        // IsAnime
+        bool IsAnime = false;
         TVTest::EpgEventQueryInfo EpgEventQuery{};
         EpgEventQuery.EventID = Program.EventID;
         EpgEventQuery.ServiceID = Program.ServiceID;
-        const auto EpgEvent = m_pApp->GetEpgEventInfo(&EpgEventQuery);
-        if (EpgEvent == nullptr|| EpgEvent->ContentList == nullptr || EpgEvent->ContentListLength == 0)
-        {
-            PrintDebug(L"ジャンル情報の取得に失敗しました。(サービス ID: {}, サービス名: {}, 番組名: {})", Service.ServiceID, Service.szServiceName, Program.pszEventName);
-            return;
-        }
-        bool IsAnimeGenre = false;
-        for (auto i = 0; i < EpgEvent->ContentListLength; i++)
-        {
-            // ReSharper disable once CppTooWideScope
-            const auto [ContentNibbleLevel1, ContentNibbleLevel2, _, __] = EpgEvent->ContentList[i];
 
-            // 「アニメ」 or 「映画」→「アニメ」
-            if (ContentNibbleLevel1 == 0x7 || (ContentNibbleLevel1 == 0x6 && ContentNibbleLevel2 == 0x2))
-            {
-                IsAnimeGenre = true;
-                break;
-            }
+        if (const auto EpgEvent = m_pApp->GetEpgEventInfo(&EpgEventQuery); EpgEvent == nullptr)
+        {
+            // BonDriver_Pipe やチャンネルスキャンしていない場合を考慮して暫定的にアニメジャンルの判定を無視
+            IsAnime = true;
+
+            PrintDebug(L"EPG 情報の取得に失敗しました。(サービス ID: {}, サービス名: {}, 番組名: {})", Service.value().ServiceID, Service.value().szServiceName, Program.pszEventName);
+            // return;
+        } else
+        {
+            IsAnime = IsAnimeGenre(*EpgEvent);
+
+            // EpgEventInfo の解放
+            m_pApp->FreeEpgEventInfo(EpgEvent);
         }
 
-        m_pApp->FreeEpgEventInfo(EpgEvent);
-        
-        if (!IsAnimeGenre)
+        if (!IsAnime)
         {
-            PrintDebug(L"アニメジャンルではありません。無視します。");
+            PrintDebug(L"アニメジャンルではありません。スキップします。");
             return;
         }
 
         // ChannelType
-        Saya::ChannelType ChannelType;
-        if (wchar_t tuningSpaceName[8]{}; m_pApp->GetTuningSpaceName(m_pApp->GetTuningSpace(), tuningSpaceName, 8) != 0)
+        std::optional<Saya::ChannelType> ChannelType = std::nullopt;
+        TVTest::TuningSpaceInfo TuningSpace{};
+        if (m_pApp->GetTuningSpaceInfo(m_pApp->GetTuningSpace(), &TuningSpace))
         {
-            ChannelType = Saya::GetSayaChannelTypeByName(tuningSpaceName);
-        }
-        else
-        {
-            PrintDebug(L"チューニング空間の取得に失敗しました。(サービス ID: {}, サービス名: {})", Service.ServiceID, Service.szServiceName);
-            return;
+            // チューナー空間名からチャンネルタイプを取得
+            ChannelType = Saya::GetSayaChannelTypeByName(TuningSpace.szName);
+
+            // チューナー空間の enum からチャンネルタイプを取得
+            if (!ChannelType.has_value())
+            {
+                ChannelType = Saya::GetSayaChannelTypeByIndex(TuningSpace.Space);
+            }
         }
 
-        // YAML::Node
-        const auto definition = Saya::FindSayaChannel(m_definitions, ChannelType, Service.ServiceID);
-        if (!definition.has_value())
+        if (!ChannelType.has_value())
         {
-            PrintDebug(L"saya のチャンネル定義に存在しないチャンネルです。(サービス名: {}, サービス ID: {})", Service.szServiceName, Service.ServiceID);
-            return;
+            PrintDebug(L"チューニング空間の取得に失敗しました。(サービス ID: {}, サービス名: {})", Service.value().ServiceID, Service.value().szServiceName);
         }
         
-        HandleProgram(Program, Service, ChannelType, definition.value());
+        // ChannelDefinition
+        const auto ChannelDefinition = FindSayaChannel(m_definitions, ChannelType, Service.value().ServiceID);
+        if (!ChannelDefinition.has_value())
+        {
+            PrintDebug(L"saya のチャンネル定義に存在しないチャンネルです。スキップします。(サービス名: {}, サービス ID: {})", Service.value().szServiceName, Service.value().ServiceID);
+            return;
+        }
 
-        m_lastProgram = Program;
+        const auto result = Annict::CreateRecord(m_annictToken, Program, ChannelDefinition.value(), m_annictIds, m_dryRun);
+        if (result.success)
+        {
+            m_pApp->AddLog(L"Annict に視聴記録を送信しました。");
+            m_pApp->AddLog(
+                std::format(L"Annict 作品名: {}, エピソード名: {} ({})", result.workName.value_or(L""), result.episodeName.value_or(L""), result.episodeNumberText.value_or(L"")).c_str()
+            );
+        }
+
+        m_recorded[Program.EventID] = true;
+        m_lastRecordResult = result;
     }
 
     PrintDebug(L"クリティカルセクションから出ました。");
@@ -268,6 +363,7 @@ LRESULT CALLBACK CAnnictRecorderPlugin::EventCallback(const UINT Event, const LP
     {
     case TVTest::EVENT_PLUGINENABLE:
         pThis->m_isEnabled = lParam1 == 1;
+
         if (pThis->m_isEnabled)
         {
             pThis->Enable();
@@ -286,6 +382,86 @@ LRESULT CALLBACK CAnnictRecorderPlugin::EventCallback(const UINT Event, const LP
         pThis->CheckCurrentProgram();
 
         return true;
+
+    case TVTest::EVENT_STATUSITEM_DRAW:
+        // ステータス項目の描画
+        {
+            const auto pInfo = reinterpret_cast<const TVTest::StatusItemDrawInfo*>(lParam1);
+
+            std::wstring status;
+            if ((pInfo->Flags & TVTest::STATUS_ITEM_DRAW_FLAG_PREVIEW) == 0)
+            {
+                // 通常の項目の描画
+                if (pThis->m_lastRecordResult.success)
+                {
+                    if (pThis->m_lastRecordResult.episodeNumber.has_value() && pThis->m_lastRecordResult.episodeName.has_value()) {
+                        status = std::format(
+                            L"#{}「{}」を記録しました。",
+                            pThis->m_lastRecordResult.episodeNumber.value(),
+                            pThis->m_lastRecordResult.episodeName.value()
+                        );
+                    }
+                    else if (pThis->m_lastRecordResult.workName.has_value())
+                    {
+                        status = std::format(
+                            L"{}を記録しました。",
+                            pThis->m_lastRecordResult.workName.value()
+                        );
+                    }
+                }
+                else
+                {
+                    status = L"AnnictRecorder 待機中...";
+                }
+            }
+            else
+            {
+                // プレビュー(設定ダイアログ)の項目の描画
+                status = L"スーパーカブ #9「氷の中」を記録しました。";
+            }
+
+            pThis->m_pApp->ThemeDrawText(
+                pInfo->pszStyle,
+                pInfo->hdc,
+                status.c_str(),
+                pInfo->DrawRect,
+                DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS,
+                pInfo->Color
+            );
+        }
+
+        return true;
+
+    // ステータス項目の通知
+    case TVTest::EVENT_STATUSITEM_NOTIFY:
+        {
+            switch (const auto * pInfo = reinterpret_cast<const TVTest::StatusItemEventInfo*>(lParam1); pInfo->Event)
+            {
+            // 項目が作成された
+            case TVTest::STATUS_ITEM_EVENT_CREATED:
+                {
+                    TVTest::StatusItemSetInfo StatusItemSet{};
+                    StatusItemSet.Size = sizeof StatusItemSet;
+                    StatusItemSet.Mask = TVTest::STATUS_ITEM_SET_INFO_MASK_STATE;
+                    StatusItemSet.ID = AnnictRecorderStatusItemId;
+                    StatusItemSet.StateMask = TVTest::STATUS_ITEM_STATE_VISIBLE;
+                    // プラグインが有効であれば項目を表示状態にする
+                    StatusItemSet.State = pThis->m_pApp->IsPluginEnabled() ? TVTest::STATUS_ITEM_STATE_VISIBLE : 0;
+
+                    pThis->m_pApp->SetStatusItem(&StatusItemSet);
+                }
+
+                return true;
+
+            // 更新タイマー
+            case TVTest::STATUS_ITEM_EVENT_UPDATETIMER:
+                // true を返すと再描画される
+                return true;
+
+            default:
+                return false;
+            }
+        }
 
     default:
         return false;
