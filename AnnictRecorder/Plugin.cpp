@@ -7,7 +7,8 @@
 #include "Utils.h"
 
 constexpr auto AnnictRecorderWindowClass = L"AnnictRecorder Window";
-constexpr auto AnnictRecorderTimerId = 1;
+constexpr auto AnnictRecorderStatusItemId = WM_APP + 1;
+constexpr auto AnnictRecorderTimerId = WM_APP + 1;
 constexpr auto AnnictRecorderTimerIntervalMs = 5 * 1000;
 constexpr auto MaxEventNameLength = 64;
 
@@ -16,8 +17,10 @@ class CAnnictRecorderPlugin final : public TVTest::CTVTestPlugin
     wchar_t m_iniFileName[MAX_PATH]{};
     HWND m_hWnd{};
     YAML::Node m_definitions{};
+    YAML::Node m_annictIds{};
     std::map<WORD, time_t> m_watchStartTime{};
     std::map<WORD, bool> m_recorded{};
+    Annict::CreateRecordResult m_lastRecordResult{};
     std::mutex m_mutex{};
 
     char m_annictToken[MaxAnnictTokenLength]{};
@@ -40,9 +43,9 @@ public:
      */
     DWORD GetVersion() override
     {
-        // TVTest API 0.0.12 以上
-        // (TVTest ver.0.7.14 or later)
-        return TVTEST_PLUGIN_VERSION_(0, 0, 12);
+        // TVTest API 0.0.14 以上
+        // (TVTest ver.0.9.0 or later)
+        return TVTEST_PLUGIN_VERSION_(0, 0, 14);
     }
 
     /*
@@ -82,6 +85,7 @@ public:
         wc.lpszClassName = AnnictRecorderWindowClass;
         if (::RegisterClass(&wc) == 0)
         {
+            m_pApp->AddLog(L"ウィンドウクラスの登録に失敗しました。");
             return false;
         }
 
@@ -92,6 +96,25 @@ public:
         );
         if (m_hWnd == nullptr)
         {
+            m_pApp->AddLog(L"ウィンドウの作成に失敗しました。");
+            return false;
+        }
+
+        // ステータス項目の登録
+        TVTest::StatusItemInfo StatusItem{};
+        StatusItem.Size = sizeof StatusItem;
+        StatusItem.Flags = TVTest::STATUS_ITEM_FLAG_TIMERUPDATE;
+        StatusItem.Style = 0;
+        StatusItem.ID = AnnictRecorderStatusItemId;
+        StatusItem.pszIDText = L"AnnictRecorder";
+        StatusItem.pszName = L"Annict Recorder";
+        StatusItem.MinWidth = 0;
+        StatusItem.MaxWidth = -1;
+        StatusItem.DefaultWidth = TVTest::StatusItemWidthByFontSize(30);
+        StatusItem.MinHeight = 0;
+        if (!m_pApp->RegisterStatusItem(&StatusItem))
+        {
+            m_pApp->AddLog(L"ステータス項目の登録に失敗しました。");
             return false;
         }
 
@@ -154,6 +177,11 @@ void CAnnictRecorderPlugin::LoadConfig()
     m_definitions = Saya::LoadSayaDefinitions();
     m_pApp->AddLog(
         std::format(L"saya のチャンネル定義ファイルを読み込みました。(チャンネル数: {})", m_definitions["channels"].size()).c_str()
+    );
+
+    m_annictIds = Annict::LoadIdsYml();
+    m_pApp->AddLog(
+        std::format(L"しょぼいカレンダー <-> Annict の変換定義ファイルを読み込みました。(作品数: {})", m_annictIds.size()).c_str()
     );
 
     m_isReady = strlen(m_annictToken) > 0;
@@ -308,22 +336,17 @@ void CAnnictRecorderPlugin::CheckCurrentProgram()
             return;
         }
 
-        if (const auto [success, workName, episodeName, episodeNumber] = Annict::CreateRecord(m_annictToken, Program, ChannelDefinition.value(), m_dryRun); success)
+        const auto result = Annict::CreateRecord(m_annictToken, Program, ChannelDefinition.value(), m_annictIds, m_dryRun);
+        if (result.success)
         {
-            // MessageBox(
-            //     nullptr,
-            //     std::format(L"{} ({}) の視聴記録を送信しました。", episodeName.value_or(L"サブタイトル不明"), episodeNumber.value_or(L"第？話")).c_str(),
-            //     std::format(L"Annict Recorder: {}", workName.value_or(L"")).c_str(),
-            //     0
-            // );
-
             m_pApp->AddLog(L"Annict に視聴記録を送信しました。");
             m_pApp->AddLog(
-                std::format(L"Annict 作品名: {}, エピソード名: {} ({})", workName.value_or(L""), episodeName.value_or(L""), episodeNumber.value_or(L"")).c_str()
+                std::format(L"Annict 作品名: {}, エピソード名: {} ({})", result.workName.value_or(L""), result.episodeName.value_or(L""), result.episodeNumberText.value_or(L"")).c_str()
             );
         }
 
         m_recorded[Program.EventID] = true;
+        m_lastRecordResult = result;
     }
 
     PrintDebug(L"クリティカルセクションから出ました。");
@@ -340,6 +363,7 @@ LRESULT CALLBACK CAnnictRecorderPlugin::EventCallback(const UINT Event, const LP
     {
     case TVTest::EVENT_PLUGINENABLE:
         pThis->m_isEnabled = lParam1 == 1;
+
         if (pThis->m_isEnabled)
         {
             pThis->Enable();
@@ -358,6 +382,86 @@ LRESULT CALLBACK CAnnictRecorderPlugin::EventCallback(const UINT Event, const LP
         pThis->CheckCurrentProgram();
 
         return true;
+
+    case TVTest::EVENT_STATUSITEM_DRAW:
+        // ステータス項目の描画
+        {
+            const auto pInfo = reinterpret_cast<const TVTest::StatusItemDrawInfo*>(lParam1);
+
+            std::wstring status;
+            if ((pInfo->Flags & TVTest::STATUS_ITEM_DRAW_FLAG_PREVIEW) == 0)
+            {
+                // 通常の項目の描画
+                if (pThis->m_lastRecordResult.success)
+                {
+                    if (pThis->m_lastRecordResult.episodeNumber.has_value() && pThis->m_lastRecordResult.episodeName.has_value()) {
+                        status = std::format(
+                            L"#{}「{}」を記録しました。",
+                            pThis->m_lastRecordResult.episodeNumber.value(),
+                            pThis->m_lastRecordResult.episodeName.value()
+                        );
+                    }
+                    else if (pThis->m_lastRecordResult.workName.has_value())
+                    {
+                        status = std::format(
+                            L"{}を記録しました。",
+                            pThis->m_lastRecordResult.workName.value()
+                        );
+                    }
+                }
+                else
+                {
+                    status = L"AnnictRecorder 待機中...";
+                }
+            }
+            else
+            {
+                // プレビュー(設定ダイアログ)の項目の描画
+                status = L"スーパーカブ #9「氷の中」を記録しました。";
+            }
+
+            pThis->m_pApp->ThemeDrawText(
+                pInfo->pszStyle,
+                pInfo->hdc,
+                status.c_str(),
+                pInfo->DrawRect,
+                DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS,
+                pInfo->Color
+            );
+        }
+
+        return true;
+
+    // ステータス項目の通知
+    case TVTest::EVENT_STATUSITEM_NOTIFY:
+        {
+            switch (const auto * pInfo = reinterpret_cast<const TVTest::StatusItemEventInfo*>(lParam1); pInfo->Event)
+            {
+            // 項目が作成された
+            case TVTest::STATUS_ITEM_EVENT_CREATED:
+                {
+                    TVTest::StatusItemSetInfo StatusItemSet{};
+                    StatusItemSet.Size = sizeof StatusItemSet;
+                    StatusItemSet.Mask = TVTest::STATUS_ITEM_SET_INFO_MASK_STATE;
+                    StatusItemSet.ID = AnnictRecorderStatusItemId;
+                    StatusItemSet.StateMask = TVTest::STATUS_ITEM_STATE_VISIBLE;
+                    // プラグインが有効であれば項目を表示状態にする
+                    StatusItemSet.State = pThis->m_pApp->IsPluginEnabled() ? TVTest::STATUS_ITEM_STATE_VISIBLE : 0;
+
+                    pThis->m_pApp->SetStatusItem(&StatusItemSet);
+                }
+
+                return true;
+
+            // 更新タイマー
+            case TVTest::STATUS_ITEM_EVENT_UPDATETIMER:
+                // true を返すと再描画される
+                return true;
+
+            default:
+                return false;
+            }
+        }
 
     default:
         return false;

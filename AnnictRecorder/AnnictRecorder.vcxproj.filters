@@ -36,9 +36,6 @@
     <ClInclude Include="AnnictApi.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="AnnictIds.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
     <ClInclude Include="TvtPlay.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>

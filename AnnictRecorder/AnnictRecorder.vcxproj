@@ -192,7 +192,6 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="AnnictApi.h" />
-    <ClInclude Include="AnnictIds.h" />
     <ClInclude Include="Common.h" />
     <ClInclude Include="Debug.h" />
     <ClInclude Include="SayaApi.h" />
