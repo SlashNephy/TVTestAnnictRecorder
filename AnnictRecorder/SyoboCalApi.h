@@ -17,11 +17,11 @@ namespace SyoboCal
 
     inline std::optional<LookupProgramResult> LookupProgram(const SYSTEMTIME& start, const DWORD seconds, const int chId)
     {
-        const auto stTime = std::format("{04d}{02d}{02d}_{02d}{02d}{02d}-", start.wYear, start.wMonth, start.wDay, start.wHour, start.wMinute, start.wSecond);
+        const auto stTime = std::format("{:04d}{:02d}{:02d}_{:02d}{:02d}{:02d}-", start.wYear, start.wMonth, start.wDay, start.wHour, start.wMinute, start.wSecond);
         const auto endTimestamp = SystemTime2Timet(start) + seconds;
         tm end{};
         localtime_s(&end, &endTimestamp);
-        const auto range = std::format("{}-{04d}{02d}{02d}_{02d}{02d}{02d}", stTime, end.tm_year, end.tm_mon, end.tm_mday, end.tm_hour, end.tm_min, end.tm_sec);
+        const auto range = std::format("{}-{:04d}{:02d}{:02d}_{:02d}{:02d}{:02d}", stTime, end.tm_year, end.tm_mon, end.tm_mday, end.tm_hour, end.tm_min, end.tm_sec);
 
         const auto response = cpr::Get(
             cpr::Url{"https://cal.syoboi.jp/db.php"},
