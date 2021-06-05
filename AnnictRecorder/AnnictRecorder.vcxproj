@@ -198,8 +198,8 @@
     <ClInclude Include="SayaApi.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="SyoboCalApi.h" />
+    <ClInclude Include="TvtPlay.h" />
     <ClInclude Include="Utils.h" />
-    <ClInclude Include="Title.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Plugin.cpp" />

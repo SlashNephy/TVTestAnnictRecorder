@@ -1,24 +1,27 @@
 ﻿#include "pch.h"
 
+#include "AnnictApi.h"
 #include "Debug.h"
 #include "SayaApi.h"
-#include "Title.h"
+#include "TvtPlay.h"
+#include "Utils.h"
 
 constexpr auto AnnictRecorderWindowClass = L"AnnictRecorder Window";
 constexpr auto AnnictRecorderTimerId = 1;
 constexpr auto AnnictRecorderTimerIntervalMs = 5 * 1000;
-constexpr auto MaxAnnictTokenLength = 64;
 constexpr auto MaxEventNameLength = 64;
 
 class CAnnictRecorderPlugin final : public TVTest::CTVTestPlugin
 {
     wchar_t m_iniFileName[MAX_PATH]{};
     HWND m_hWnd{};
-    TVTest::ProgramInfo m_lastProgram{};
     YAML::Node m_definitions{};
-    std::mutex m_mutex;
+    std::map<WORD, time_t> m_watchStartTime{};
+    std::map<WORD, bool> m_recorded{};
+    std::mutex m_mutex{};
 
-    wchar_t m_annictToken[MaxAnnictTokenLength]{};
+    char m_annictToken[MaxAnnictTokenLength]{};
+    int m_recordThresholdPercent = 20;
     bool m_isReady = false;
     bool m_isEnabled = false;
 
@@ -120,10 +123,6 @@ TVTest::CTVTestPlugin* CreatePluginClass()
  */
 void CAnnictRecorderPlugin::Enable()
 {
-    // デバッグコンソールの初期化
-#ifdef _DEBUG
-    CreateConsole();
-#endif
 
     // 設定の読み込み
     LoadConfig();
@@ -134,10 +133,6 @@ void CAnnictRecorderPlugin::Enable()
  */
 void CAnnictRecorderPlugin::Disable()
 {
-    // デバッグコンソールの破棄
-#ifdef _DEBUG
-    DestroyConsole();
-#endif
 }
 
 /*
@@ -148,14 +143,18 @@ void CAnnictRecorderPlugin::LoadConfig()
     ::GetModuleFileName(g_hinstDLL, m_iniFileName, MAX_PATH);
     ::PathRenameExtension(m_iniFileName, L".ini");
 
-    ::GetPrivateProfileString(L"Annict", L"Token", L"", m_annictToken, MaxAnnictTokenLength, m_iniFileName);
+    wchar_t annictTokenW[MaxAnnictTokenLength];
+    ::GetPrivateProfileString(L"Annict", L"Token", L"", annictTokenW, MaxAnnictTokenLength, m_iniFileName);
+    m_recordThresholdPercent = ::GetPrivateProfileInt(L"Record", L"ThresholdPercent", m_recordThresholdPercent, m_iniFileName);
+
+    wcstombs_s(nullptr, m_annictToken, annictTokenW, MaxAnnictTokenLength - 1);
 
     m_definitions = Saya::LoadSayaDefinitions();
     m_pApp->AddLog(
         std::format(L"saya のチャンネル定義ファイルを読み込みました。(チャンネル数: {})", m_definitions["channels"].size()).c_str()
     );
 
-    m_isReady = wcslen(m_annictToken) > 0;
+    m_isReady = strlen(m_annictToken) > 0;
 }
 
 /*
@@ -207,9 +206,49 @@ void CAnnictRecorderPlugin::CheckCurrentProgram()
             return;
         }
 
-        if (Program.EventID == m_lastProgram.EventID)
+        // TvtPlayHwnd
+        const auto tvtPlayHwnd = FindTvtPlayFrame();
+
+        // 記録を付ける閾値に達しているかをチェック
+        auto shouldRecord = false;
+        if (const auto duration = static_cast<double>(Program.Duration); tvtPlayHwnd)
         {
-            PrintDebug(L"前回と同じ番組です。スキップします。");
+            const auto pos = GetTvtPlayPositionSec(tvtPlayHwnd);
+            const auto percent = 100.0 * pos / duration;
+            
+            shouldRecord = percent >= m_recordThresholdPercent;
+            PrintDebug(L"視聴位置 = {} %", percent);
+        }
+        else
+        {
+            time_t watchStartTime;
+            if (m_watchStartTime.contains(Program.EventID))
+            {
+                watchStartTime = m_watchStartTime[Program.EventID];
+            }
+            else
+            {
+                watchStartTime = time(nullptr);
+                m_watchStartTime[Program.EventID] = watchStartTime;
+                return;
+            }
+
+            const auto pos = time(nullptr) - watchStartTime;
+            const auto percent = 100.0 * static_cast<double>(pos) / duration;
+
+            shouldRecord = percent >= m_recordThresholdPercent;
+            PrintDebug(L"視聴位置 = {} %", percent);
+        }
+
+        if (!shouldRecord)
+        {
+            PrintDebug(L"記録するための閾値 ({} %) に達していません。スキップします。", m_recordThresholdPercent);
+            return;
+        }
+        
+        if (m_recorded[Program.EventID]) {
+            PrintDebug(L"既に Annict に記録済です。スキップします。");
+            return;
         }
 
         // IsAnime
@@ -231,6 +270,12 @@ void CAnnictRecorderPlugin::CheckCurrentProgram()
 
             // EpgEventInfo の解放
             m_pApp->FreeEpgEventInfo(EpgEvent);
+        }
+
+        if (!IsAnime)
+        {
+            PrintDebug(L"アニメジャンルではありません。スキップします。");
+            return;
         }
 
         // ChannelType
@@ -261,9 +306,14 @@ void CAnnictRecorderPlugin::CheckCurrentProgram()
             return;
         }
 
-        HandleProgram(Program, IsAnime, ChannelDefinition.value());
+        if (const auto result = Annict::CreateRecord(m_annictToken, Program, ChannelDefinition.value()); result.success)
+        {
+            m_pApp->AddLog(
+                std::format(L"Annict に視聴記録を送信しました。()").c_str()
+            );
+        }
 
-        m_lastProgram = Program;
+        m_recorded[Program.EventID] = true;
     }
 
     PrintDebug(L"クリティカルセクションから出ました。");
