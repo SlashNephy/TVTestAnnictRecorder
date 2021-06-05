@@ -5,7 +5,7 @@
 
 📝 視聴したアニメの視聴記録を自動で Annict に送信する TVTest プラグイン (TVTest ver.0.9.0 or later)
 
-[![statusbar.png](https://raw.githubusercontent.com/SlashNephy/TVTestAnnictRecorder/master/docs/screenshot.png)](https://github.com/SlashNephy/TVTestAnnictRecorder)
+[![statusbar.png](https://raw.githubusercontent.com/SlashNephy/TVTestAnnictRecorder/master/docs/statusbar.png)](https://github.com/SlashNephy/TVTestAnnictRecorder)
 
 ## Flow
 
