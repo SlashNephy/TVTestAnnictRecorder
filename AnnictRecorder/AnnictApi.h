@@ -38,23 +38,36 @@ namespace Annict
         return json["episodes"];
     }
 
-    inline std::optional<std::string> GetStringOrNull(const nlohmann::json& json, const std::string& key)
+    inline std::optional<std::wstring> GetStringOrNull(const nlohmann::json& json, const std::string& key)
     {
-        return json.is_object() && !json[key].is_null() ? std::optional(json[key].get<std::string>()) : std::nullopt;
+        if (!json.is_object() || json[key].is_null())
+        {
+            return std::nullopt;
+        }
+
+        // ロケールの設定
+        setlocale(LC_ALL, ".utf8");
+
+        wchar_t buf[256];
+        const auto value = json[key].get<std::string>();
+        mbstowcs_s(nullptr, buf, value.c_str(), 255);
+
+        return std::optional(buf);
     }
 
     struct CreateRecordResult
     {
         bool success = false;
-        std::optional<std::string> workName{};
-        std::optional<std::string> episodeName{};
-        std::optional<std::string> episodeNumber{};
+        std::optional<std::wstring> workName{};
+        std::optional<std::wstring> episodeName{};
+        std::optional<std::wstring> episodeNumber{};
     };
 
     static CreateRecordResult CreateRecord(
         const std::string& annictToken,
         const TVTest::ProgramInfo& Program,
-        const YAML::Node& ChannelDefinition
+        const YAML::Node& ChannelDefinition,
+        const bool DryRun
     )
     {
         // しょぼいカレンダーに登録されていないチャンネルは無視
@@ -96,7 +109,10 @@ namespace Annict
         }
 
         const auto annictEpisodeId = (*currentEpisode)["id"].get<uint32_t>();
-        PostRecord(annictEpisodeId, annictToken);
+        if (!DryRun)
+        {
+            PostRecord(annictEpisodeId, annictToken);
+        }
 
         PrintDebug(L"Annict に視聴を記録しました。(TID={}, Work ID={}, Episode ID={})", syoboCalTid, annictWorkId.value(), annictEpisodeId);
         return CreateRecordResult{

@@ -22,6 +22,7 @@ class CAnnictRecorderPlugin final : public TVTest::CTVTestPlugin
 
     char m_annictToken[MaxAnnictTokenLength]{};
     int m_recordThresholdPercent = 20;
+    bool m_dryRun = false;
     bool m_isReady = false;
     bool m_isEnabled = false;
 
@@ -146,6 +147,7 @@ void CAnnictRecorderPlugin::LoadConfig()
     wchar_t annictTokenW[MaxAnnictTokenLength];
     ::GetPrivateProfileString(L"Annict", L"Token", L"", annictTokenW, MaxAnnictTokenLength, m_iniFileName);
     m_recordThresholdPercent = ::GetPrivateProfileInt(L"Record", L"ThresholdPercent", m_recordThresholdPercent, m_iniFileName);
+    m_dryRun = ::GetPrivateProfileInt(L"Record", L"DryRun", m_dryRun, m_iniFileName) > 0;
 
     wcstombs_s(nullptr, m_annictToken, annictTokenW, MaxAnnictTokenLength - 1);
 
@@ -217,7 +219,7 @@ void CAnnictRecorderPlugin::CheckCurrentProgram()
             const auto percent = 100.0 * pos / duration;
             
             shouldRecord = percent >= m_recordThresholdPercent;
-            PrintDebug(L"視聴位置 = {} %", percent);
+            PrintDebug(L"視聴位置 = {:.1f} %", percent);
         }
         else
         {
@@ -237,7 +239,7 @@ void CAnnictRecorderPlugin::CheckCurrentProgram()
             const auto percent = 100.0 * static_cast<double>(pos) / duration;
 
             shouldRecord = percent >= m_recordThresholdPercent;
-            PrintDebug(L"視聴位置 = {} %", percent);
+            PrintDebug(L"視聴位置 = {:.1f} %", percent);
         }
 
         if (!shouldRecord)
@@ -306,10 +308,18 @@ void CAnnictRecorderPlugin::CheckCurrentProgram()
             return;
         }
 
-        if (const auto result = Annict::CreateRecord(m_annictToken, Program, ChannelDefinition.value()); result.success)
+        if (const auto [success, workName, episodeName, episodeNumber] = Annict::CreateRecord(m_annictToken, Program, ChannelDefinition.value(), m_dryRun); success)
         {
+            // MessageBox(
+            //     nullptr,
+            //     std::format(L"{} ({}) の視聴記録を送信しました。", episodeName.value_or(L"サブタイトル不明"), episodeNumber.value_or(L"第？話")).c_str(),
+            //     std::format(L"Annict Recorder: {}", workName.value_or(L"")).c_str(),
+            //     0
+            // );
+
+            m_pApp->AddLog(L"Annict に視聴記録を送信しました。");
             m_pApp->AddLog(
-                std::format(L"Annict に視聴記録を送信しました。()").c_str()
+                std::format(L"Annict 作品名: {}, エピソード名: {} ({})", workName.value_or(L""), episodeName.value_or(L""), episodeNumber.value_or(L"")).c_str()
             );
         }
 
