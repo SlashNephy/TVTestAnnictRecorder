@@ -17,7 +17,7 @@ class CAnnictRecorderPlugin final : public TVTest::CTVTestPlugin
     wchar_t m_iniFileName[MAX_PATH]{};
     HWND m_hWnd{};
     YAML::Node m_definitions{};
-    YAML::Node m_annictIds{};
+    std::map<uint32_t, uint32_t> m_annictIds{};
     std::map<WORD, time_t> m_watchStartTime{};
     std::map<WORD, bool> m_recorded{};
     Annict::CreateRecordResult m_lastRecordResult{};
@@ -179,9 +179,9 @@ void CAnnictRecorderPlugin::LoadConfig()
         std::format(L"saya のチャンネル定義ファイルを読み込みました。(チャンネル数: {})", m_definitions["channels"].size()).c_str()
     );
 
-    m_annictIds = Annict::LoadIdsYml();
+    m_annictIds = Annict::LoadArmJson();
     m_pApp->AddLog(
-        std::format(L"しょぼいカレンダー <-> Annict の変換定義ファイルを読み込みました。(作品数: {})", m_annictIds.size()).c_str()
+        std::format(L"kawaiioverflow/arm の定義ファイルを読み込みました。(作品数: {})", m_annictIds.size()).c_str()
     );
 
     m_isReady = strlen(m_annictToken) > 0;

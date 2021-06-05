@@ -12,7 +12,7 @@
 - TVTest から現在の番組を取得
 - saya の [チャンネル定義](https://github.com/SlashNephy/saya/blob/dev/docs/definitions.yml) からしょぼいカレンダーの ChID を取得
 - 番組の放送時間からしょぼいカレンダーに問い合わせて, しょぼいカレンダー TID と話数を取得
-- TID から Annict 作品 ID を取得
+- [kawaiioverflow/arm](https://github.com/kawaiioverflow/arm) で TID から Annict 作品 ID を取得
 - Annict 作品 ID と話数から Annict に問い合わせて, Annict エピソード ID を取得
 - Annict エピソード ID に視聴記録をつける
 

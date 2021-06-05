@@ -7,16 +7,29 @@
 
 namespace Annict
 {
-    constexpr auto DefinitionsYmlUrl = "https://raw.githubusercontent.com/SlashNephy/TVTestAnnictRecorder/master/docs/AnnictRecorder.ids.yml";
+    constexpr auto ArmJsonUrl = "https://raw.githubusercontent.com/kawaiioverflow/arm/master/arm.json";
 
-    inline YAML::Node LoadIdsYml()
+    inline std::map<uint32_t, uint32_t> LoadArmJson()
     {
         const auto response = cpr::Get(
-            cpr::Url{DefinitionsYmlUrl},
+            cpr::Url{ArmJsonUrl},
             cpr::UserAgent{AnnictRecorderUserAgent}
         );
 
-        return YAML::Load(response.text)["tid2annict"];
+        std::map<uint32_t, uint32_t> map{};
+        for (auto& it : nlohmann::json::parse(response.text))
+        {
+            if (!it["syobocal_tid"].is_number_unsigned() || !it["annict_id"].is_number_unsigned())
+            {
+                continue;
+            }
+
+            const auto syobocalTid = it["syobocal_tid"].get<uint32_t>();
+            const auto annictId = it["annict_id"].get<uint32_t>();
+            map[syobocalTid] = annictId;
+        }
+
+        return map;
     }
 
     static void PostRecord(const uint32_t episodeId, const std::string& annictToken)
@@ -31,7 +44,7 @@ namespace Annict
         );
     }
 
-    static nlohmann::json GetEpisodes(const uint16_t workId, const std::string& annictToken)
+    static nlohmann::json GetEpisodes(const uint32_t workId, const std::string& annictToken)
     {
         // Paging not supported
         const auto response = cpr::Get(
@@ -79,7 +92,7 @@ namespace Annict
         const std::string& annictToken,
         const TVTest::ProgramInfo& Program,
         const YAML::Node& ChannelDefinition,
-        const YAML::Node& AnnictIds,
+        std::map<uint32_t, uint32_t>& AnnictIds,
         const bool DryRun
     )
     {
@@ -99,17 +112,17 @@ namespace Annict
             return CreateRecordResult{};
         }
 
-        const auto syoboCalTitleId = std::to_string(syoboCalProgram.value().titleId);
-        const auto annictWorkId = AnnictIds[syoboCalTitleId].IsDefined() ? std::optional(AnnictIds[syoboCalTitleId].as<uint16_t>()) : std::nullopt;
-        if (!annictWorkId.has_value())
+        const auto syoboCalTitleId = syoboCalProgram.value().titleId;
+        if (!AnnictIds.contains(syoboCalTitleId))
         {
             PrintDebug(L"Annict での作品データが見つかりませんでした。スキップします。(TID={})", syoboCalProgram.value().titleId);
             return CreateRecordResult{};
         }
 
-        PrintDebug(L"Annict ID ={}", annictWorkId.value());
+        const auto annictWorkId = AnnictIds[syoboCalTitleId];
+        PrintDebug(L"Annict ID ={}", annictWorkId);
 
-        const auto episodes = GetEpisodes(annictWorkId.value(), annictToken);
+        const auto episodes = GetEpisodes(annictWorkId, annictToken);
         const auto currentEpisode = std::ranges::find_if(episodes, [syoboCalProgram](const nlohmann::json& episode)
         {
             return syoboCalProgram.value().count == episode["number"].get<float_t>();  // NOLINT(clang-diagnostic-float-equal)
@@ -117,7 +130,7 @@ namespace Annict
 
         if (currentEpisode == episodes.end())
         {
-            PrintDebug(L"Annict でのエピソードデータが見つかりませんでした。スキップします。(TID={}, Work ID={})", syoboCalProgram.value().titleId, annictWorkId.value());
+            PrintDebug(L"Annict でのエピソードデータが見つかりませんでした。スキップします。(TID={}, Work ID={})", syoboCalProgram.value().titleId, annictWorkId);
             return CreateRecordResult{};
         }
 
@@ -127,7 +140,7 @@ namespace Annict
             PostRecord(annictEpisodeId, annictToken);
         }
 
-        PrintDebug(L"Annict に視聴を記録しました。(TID={}, Work ID={}, Episode ID={})", syoboCalProgram.value().titleId, annictWorkId.value(), annictEpisodeId);
+        PrintDebug(L"Annict に視聴を記録しました。(TID={}, Work ID={}, Episode ID={})", syoboCalProgram.value().titleId, annictWorkId, annictEpisodeId);
         return CreateRecordResult{
             true,
             GetStringOrNull((*currentEpisode)["work"], "title"),

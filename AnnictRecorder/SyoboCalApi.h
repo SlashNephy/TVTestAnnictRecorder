@@ -10,7 +10,7 @@ namespace SyoboCal
 {
     struct LookupProgramResult
     {
-        uint16_t titleId;
+        uint32_t titleId;
         float_t count;
         std::optional<std::string> subTitle;
     };
