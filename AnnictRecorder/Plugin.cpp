@@ -6,8 +6,9 @@
 
 constexpr auto AnnictRecorderWindowClass = L"AnnictRecorder Window";
 constexpr auto AnnictRecorderTimerId = 1;
-constexpr auto AnnictRecorderTimerIntervalMs = 60 * 1000;
-constexpr auto AnnictTokenMaxLength = 64;
+constexpr auto AnnictRecorderTimerIntervalMs = 5 * 1000;
+constexpr auto MaxAnnictTokenLength = 64;
+constexpr auto MaxEventNameLength = 64;
 
 class CAnnictRecorderPlugin final : public TVTest::CTVTestPlugin
 {
@@ -17,7 +18,7 @@ class CAnnictRecorderPlugin final : public TVTest::CTVTestPlugin
     YAML::Node m_definitions{};
     std::mutex m_mutex;
 
-    wchar_t m_annictToken[AnnictTokenMaxLength]{};
+    wchar_t m_annictToken[MaxAnnictTokenLength]{};
     bool m_isReady = false;
     bool m_isEnabled = false;
 
@@ -36,6 +37,7 @@ public:
     DWORD GetVersion() override
     {
         // TVTest API 0.0.12 以上
+        // (TVTest ver.0.7.14 or later)
         return TVTEST_PLUGIN_VERSION_(0, 0, 12);
     }
 
@@ -45,6 +47,7 @@ public:
     bool GetPluginInfo(TVTest::PluginInfo* pInfo) override
     {
         pInfo->Type = TVTest::PLUGIN_TYPE_NORMAL;
+        pInfo->Flags = 0;
         pInfo->pszPluginName = L"Annict Recorder";
         pInfo->pszCopyright = L"© 2021 Nep";
         pInfo->pszDescription = L"視聴したアニメの視聴記録を自動で Annict に送信します。";
@@ -145,7 +148,7 @@ void CAnnictRecorderPlugin::LoadConfig()
     ::GetModuleFileName(g_hinstDLL, m_iniFileName, MAX_PATH);
     ::PathRenameExtension(m_iniFileName, L".ini");
 
-    ::GetPrivateProfileString(L"Annict", L"Token", L"", m_annictToken, AnnictTokenMaxLength, m_iniFileName);
+    ::GetPrivateProfileString(L"Annict", L"Token", L"", m_annictToken, MaxAnnictTokenLength, m_iniFileName);
 
     m_definitions = Saya::LoadSayaDefinitions();
     m_pApp->AddLog(
@@ -172,84 +175,93 @@ void CAnnictRecorderPlugin::CheckCurrentProgram()
         std::lock_guard lock(m_mutex);
         PrintDebug(L"クリティカルセクションに入りました。");
 
-        // ServiceInfo
-        TVTest::ServiceInfo Service{};
-        if (!m_pApp->GetServiceInfo(0, &Service))
+        // ServiceInfo: サブチャンネルを考慮する
+        std::optional<TVTest::ServiceInfo> Service = std::nullopt;
+        for (auto i = 0; i < 3; i++)
         {
-            PrintDebug(L"サービス情報の取得に失敗しました。");
+            TVTest::ServiceInfo service{};
+            if (m_pApp->GetServiceInfo(i, &service))
+            {
+                Service = std::optional(service);
+                break;
+            }
+        }
+
+        if (!Service.has_value())
+        {
+            PrintDebug(L"サービス情報の取得に失敗しました。スキップします。");
             return;
         }
 
         // ProgramInfo
         TVTest::ProgramInfo Program{};
-        wchar_t pszEventName[64]{};
+        wchar_t pszEventName[MaxEventNameLength]{};
         Program.pszEventName = pszEventName;
         Program.MaxEventName = _countof(pszEventName);
         Program.pszEventText = nullptr;
         Program.pszEventExtText = nullptr;
+
         if (!m_pApp->GetCurrentProgramInfo(&Program))
         {
-            PrintDebug(L"番組情報の取得に失敗しました。(サービス ID: {}, サービス名: {})", Service.ServiceID, Service.szServiceName);
+            PrintDebug(L"番組情報の取得に失敗しました。スキップします。(サービス ID: {}, サービス名: {})", Service.value().ServiceID, Service.value().szServiceName);
             return;
         }
+
         if (Program.EventID == m_lastProgram.EventID)
         {
-            PrintDebug(L"前回と同じ番組です。無視します。");
+            PrintDebug(L"前回と同じ番組です。スキップします。");
         }
 
-        // EpgEventInfo
+        // IsAnime
+        bool IsAnime = false;
         TVTest::EpgEventQueryInfo EpgEventQuery{};
         EpgEventQuery.EventID = Program.EventID;
         EpgEventQuery.ServiceID = Program.ServiceID;
-        const auto EpgEvent = m_pApp->GetEpgEventInfo(&EpgEventQuery);
-        if (EpgEvent == nullptr|| EpgEvent->ContentList == nullptr || EpgEvent->ContentListLength == 0)
-        {
-            PrintDebug(L"ジャンル情報の取得に失敗しました。(サービス ID: {}, サービス名: {}, 番組名: {})", Service.ServiceID, Service.szServiceName, Program.pszEventName);
-            return;
-        }
-        bool IsAnimeGenre = false;
-        for (auto i = 0; i < EpgEvent->ContentListLength; i++)
-        {
-            // ReSharper disable once CppTooWideScope
-            const auto [ContentNibbleLevel1, ContentNibbleLevel2, _, __] = EpgEvent->ContentList[i];
 
-            // 「アニメ」 or 「映画」→「アニメ」
-            if (ContentNibbleLevel1 == 0x7 || (ContentNibbleLevel1 == 0x6 && ContentNibbleLevel2 == 0x2))
-            {
-                IsAnimeGenre = true;
-                break;
-            }
-        }
-
-        m_pApp->FreeEpgEventInfo(EpgEvent);
-        
-        if (!IsAnimeGenre)
+        if (const auto EpgEvent = m_pApp->GetEpgEventInfo(&EpgEventQuery); EpgEvent == nullptr)
         {
-            PrintDebug(L"アニメジャンルではありません。無視します。");
-            return;
+            // BonDriver_Pipe やチャンネルスキャンしていない場合を考慮して暫定的にアニメジャンルの判定を無視
+            IsAnime = true;
+
+            PrintDebug(L"EPG 情報の取得に失敗しました。(サービス ID: {}, サービス名: {}, 番組名: {})", Service.value().ServiceID, Service.value().szServiceName, Program.pszEventName);
+            // return;
+        } else
+        {
+            IsAnime = IsAnimeGenre(*EpgEvent);
+
+            // EpgEventInfo の解放
+            m_pApp->FreeEpgEventInfo(EpgEvent);
         }
 
         // ChannelType
-        Saya::ChannelType ChannelType;
-        if (wchar_t tuningSpaceName[8]{}; m_pApp->GetTuningSpaceName(m_pApp->GetTuningSpace(), tuningSpaceName, 8) != 0)
+        std::optional<Saya::ChannelType> ChannelType = std::nullopt;
+        TVTest::TuningSpaceInfo TuningSpace{};
+        if (m_pApp->GetTuningSpaceInfo(m_pApp->GetTuningSpace(), &TuningSpace))
         {
-            ChannelType = Saya::GetSayaChannelTypeByName(tuningSpaceName);
+            // チューナー空間名からチャンネルタイプを取得
+            ChannelType = Saya::GetSayaChannelTypeByName(TuningSpace.szName);
+
+            // チューナー空間の enum からチャンネルタイプを取得
+            if (!ChannelType.has_value())
+            {
+                ChannelType = Saya::GetSayaChannelTypeByIndex(TuningSpace.Space);
+            }
         }
-        else
+
+        if (!ChannelType.has_value())
         {
-            PrintDebug(L"チューニング空間の取得に失敗しました。(サービス ID: {}, サービス名: {})", Service.ServiceID, Service.szServiceName);
+            PrintDebug(L"チューニング空間の取得に失敗しました。(サービス ID: {}, サービス名: {})", Service.value().ServiceID, Service.value().szServiceName);
+        }
+        
+        // ChannelDefinition
+        const auto ChannelDefinition = FindSayaChannel(m_definitions, ChannelType, Service.value().ServiceID);
+        if (!ChannelDefinition.has_value())
+        {
+            PrintDebug(L"saya のチャンネル定義に存在しないチャンネルです。スキップします。(サービス名: {}, サービス ID: {})", Service.value().szServiceName, Service.value().ServiceID);
             return;
         }
 
-        // YAML::Node
-        const auto definition = Saya::FindSayaChannel(m_definitions, ChannelType, Service.ServiceID);
-        if (!definition.has_value())
-        {
-            PrintDebug(L"saya のチャンネル定義に存在しないチャンネルです。(サービス名: {}, サービス ID: {})", Service.szServiceName, Service.ServiceID);
-            return;
-        }
-        
-        HandleProgram(Program, Service, ChannelType, definition.value());
+        HandleProgram(Program, IsAnime, ChannelDefinition.value());
 
         m_lastProgram = Program;
     }

@@ -2,21 +2,27 @@
 
 #include "pch.h"
 
+#include "AnnictIds.h"
 #include "SyoboCalApi.h"
 #include "Utils.h"
 
 inline void HandleProgram(
     const TVTest::ProgramInfo& Program,
-    const TVTest::ServiceInfo& Service,
-    const Saya::ChannelType ChannelType,
+    const bool IsAnime,
     const YAML::Node& ChannelDefinition
 )
 {
+    if (!IsAnime)
+    {
+        PrintDebug(L"アニメジャンルではありません。スキップします。");
+        return;
+    }
+
     // しょぼいカレンダーに登録されていないチャンネルは無視
     const auto rawSyoboCalId = ChannelDefinition["syobocalId"];
     if (!rawSyoboCalId.IsDefined())
     {
-        PrintDebug(L"しょぼいカレンダーに登録されていないチャンネルです。無視します。");
+        PrintDebug(L"しょぼいカレンダーに登録されていないチャンネルです。スキップします。");
         return;
     }
 
@@ -27,7 +33,42 @@ inline void HandleProgram(
         return;
     }
 
-    MessageBox(nullptr, std::format(L"TID={}", syoboCalProgram.value().titleId).c_str(), L"Debug", MB_ICONINFORMATION);
+    const auto syoboCalTid = syoboCalProgram.value().titleId;
+    const auto annictId = Annict::SyoboCalTidToAnnictId(syoboCalTid);
+    if (!annictId.has_value())
+    {
+        PrintDebug(L"Annict での作品データが見つかりませんでした。スキップします。(TID={})", syoboCalTid);
+        return;
+    }
+
+    PrintDebug(L"Annict ID={}", annictId.value());
+}
+
+/*
+ * この番組がアニメジャンルであるかどうか判定する
+ */
+inline bool IsAnimeGenre(const TVTest::EpgEventInfo& EpgEvent)
+{
+    if (EpgEvent.ContentList == nullptr)
+    {
+        return false;
+    }
+
+    bool result = false;
+    for (auto i = 0; i < EpgEvent.ContentListLength; i++)
+    {
+        // ReSharper disable once CppTooWideScope
+        const auto [ContentNibbleLevel1, ContentNibbleLevel2, _, __] = EpgEvent.ContentList[i];
+
+        // 「アニメ」 or 「映画」→「アニメ」
+        if (ContentNibbleLevel1 == 0x7 || (ContentNibbleLevel1 == 0x6 && ContentNibbleLevel2 == 0x2))
+        {
+            result = true;
+            break;
+        }
+    }
+
+    return result;
 }
 
 inline std::wstring NormalizeTitle(const std::wstring& source)

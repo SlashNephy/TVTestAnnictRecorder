@@ -57,6 +57,8 @@ inline void DestroyConsole()
     std::wcerr.clear();
     std::wcin.clear();
 }
+
+#define STOP while (true) {}
 #else
 #define PrintDebug __noop
 #endif
