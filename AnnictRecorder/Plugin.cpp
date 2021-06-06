@@ -302,24 +302,34 @@ void CAnnictRecorderPlugin::CheckCurrentProgram()
         }
 
         // IsAnime
-        bool IsAnime = false;
-        TVTest::EpgEventQueryInfo EpgEventQuery{};
-        EpgEventQuery.EventID = Program.EventID;
-        EpgEventQuery.ServiceID = Program.ServiceID;
-
-        if (const auto EpgEvent = m_pApp->GetEpgEventInfo(&EpgEventQuery); EpgEvent == nullptr)
+        bool IsAnime = true;
+        TVTest::ChannelInfo Channel{};
+        if (m_pApp->GetCurrentChannelInfo(&Channel))
         {
-            // BonDriver_Pipe やチャンネルスキャンしていない場合を考慮して暫定的にアニメジャンルの判定を無視
-            IsAnime = true;
+            TVTest::EpgEventQueryInfo EpgEventQuery{};
+            EpgEventQuery.NetworkID = Channel.NetworkID;
+            EpgEventQuery.TransportStreamID = Channel.TransportStreamID;
+            EpgEventQuery.ServiceID = Channel.ServiceID;
+            EpgEventQuery.Type = TVTest::EPG_EVENT_QUERY_EVENTID;
+            EpgEventQuery.EventID = Program.EventID;
+            EpgEventQuery.Flags = 0;
 
-            PrintDebug(L"EPG 情報の取得に失敗しました。(サービス ID: {}, サービス名: {}, 番組名: {})", Service.value().ServiceID, Service.value().szServiceName, Program.pszEventName);
-            // return;
-        } else
+            if (const auto EpgEvent = m_pApp->GetEpgEventInfo(&EpgEventQuery); EpgEvent == nullptr)
+            {
+                // BonDriver_Pipe やチャンネルスキャンしていない場合を考慮して暫定的にアニメジャンルの判定を無視
+                PrintDebug(L"EPG 情報の取得に失敗しました。(サービス ID: {}, サービス名: {}, 番組名: {})", Service.value().ServiceID, Service.value().szServiceName, Program.pszEventName);
+            }
+            else
+            {
+                IsAnime = IsAnimeGenre(*EpgEvent);
+
+                // EpgEventInfo の解放
+                m_pApp->FreeEpgEventInfo(EpgEvent);
+            }
+        }
+        else
         {
-            IsAnime = IsAnimeGenre(*EpgEvent);
-
-            // EpgEventInfo の解放
-            m_pApp->FreeEpgEventInfo(EpgEvent);
+            PrintDebug(L"チャンネル情報の取得に失敗しました。(サービス ID: {}, サービス名: {}, 番組名: {})", Service.value().ServiceID, Service.value().szServiceName, Program.pszEventName);
         }
 
         if (!IsAnime)
