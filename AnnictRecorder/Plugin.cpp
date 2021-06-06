@@ -14,13 +14,22 @@ constexpr auto MaxEventNameLength = 64;
 
 class CAnnictRecorderPlugin final : public TVTest::CTVTestPlugin
 {
+    // 設定ファイルへのパス
     wchar_t m_iniFileName[MAX_PATH]{};
+    // Window
     HWND m_hWnd{};
+
+    // saya のチャンネル定義 yml
     YAML::Node m_definitions{};
+    // しょぼいカレンダー TID をキーとして Annict 作品 ID を保持する map
     std::map<uint32_t, uint32_t> m_annictIds{};
-    std::map<WORD, time_t> m_watchStartTime{};
-    std::map<WORD, bool> m_recorded{};
+    // Program ID をキーとして番組の視聴を開始したエポック秒を保持する map
+    std::map<u_long, time_t> m_watchStartTime{};
+    // Program ID をキーとして Annict に記録済かを保持する map
+    std::map<u_long, bool> m_recorded{};
+    // 前回の Annict の記録の結果を表す構造体
     Annict::CreateRecordResult m_lastRecordResult{};
+    // CheckCurrentProgram 内の排他ロック
     std::mutex m_mutex{};
 
     char m_annictToken[MaxAnnictTokenLength]{};
@@ -101,17 +110,18 @@ public:
         }
 
         // ステータス項目の登録
-        TVTest::StatusItemInfo StatusItem{};
-        StatusItem.Size = sizeof StatusItem;
-        StatusItem.Flags = TVTest::STATUS_ITEM_FLAG_TIMERUPDATE;
-        StatusItem.Style = 0;
-        StatusItem.ID = AnnictRecorderStatusItemId;
-        StatusItem.pszIDText = L"AnnictRecorder";
-        StatusItem.pszName = L"Annict Recorder";
-        StatusItem.MinWidth = 0;
-        StatusItem.MaxWidth = -1;
-        StatusItem.DefaultWidth = TVTest::StatusItemWidthByFontSize(30);
-        StatusItem.MinHeight = 0;
+        TVTest::StatusItemInfo StatusItem{
+            sizeof StatusItem,
+            TVTest::STATUS_ITEM_FLAG_TIMERUPDATE,
+            0,
+            AnnictRecorderStatusItemId,
+            L"AnnictRecorder",
+            L"Annict Recorder",
+            0,
+            -1,
+            TVTest::StatusItemWidthByFontSize(30),
+            0,
+        };
         if (!m_pApp->RegisterStatusItem(&StatusItem))
         {
             m_pApp->AddLog(L"ステータス項目の登録に失敗しました。");
@@ -236,6 +246,9 @@ void CAnnictRecorderPlugin::CheckCurrentProgram()
             return;
         }
 
+        // 番組の固有 ID
+        const auto programId = 100000ul * Program.ServiceID + Program.EventID;
+
         // TvtPlayHwnd
         const auto tvtPlayHwnd = FindTvtPlayFrame();
 
@@ -252,14 +265,14 @@ void CAnnictRecorderPlugin::CheckCurrentProgram()
         else
         {
             time_t watchStartTime;
-            if (m_watchStartTime.contains(Program.EventID))
+            if (m_watchStartTime.contains(programId))
             {
-                watchStartTime = m_watchStartTime[Program.EventID];
+                watchStartTime = m_watchStartTime[programId];
             }
             else
             {
                 watchStartTime = time(nullptr);
-                m_watchStartTime[Program.EventID] = watchStartTime;
+                m_watchStartTime[programId] = watchStartTime;
                 return;
             }
 
@@ -276,7 +289,7 @@ void CAnnictRecorderPlugin::CheckCurrentProgram()
             return;
         }
         
-        if (m_recorded[Program.EventID]) {
+        if (m_recorded[programId]) {
             PrintDebug(L"既に Annict に記録済です。スキップします。");
             return;
         }
@@ -345,7 +358,7 @@ void CAnnictRecorderPlugin::CheckCurrentProgram()
             );
         }
 
-        m_recorded[Program.EventID] = true;
+        m_recorded[programId] = true;
         m_lastRecordResult = result;
     }
 
