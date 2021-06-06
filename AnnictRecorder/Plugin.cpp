@@ -255,10 +255,11 @@ void CAnnictRecorderPlugin::CheckCurrentProgram()
 
         // 記録を付ける閾値に達しているかをチェック
         auto shouldRecord = false;
+        double percent;
         if (const auto duration = static_cast<double>(Program.Duration); tvtPlayHwnd)
         {
             const auto pos = GetTvtPlayPositionSec(tvtPlayHwnd);
-            const auto percent = 100.0 * pos / duration;
+            percent = 100.0 * pos / duration;
             
             shouldRecord = percent >= m_recordThresholdPercent;
             PrintDebug(L"視聴位置 = {:.1f} %", percent);
@@ -278,7 +279,7 @@ void CAnnictRecorderPlugin::CheckCurrentProgram()
             }
 
             const auto pos = time(nullptr) - watchStartTime;
-            const auto percent = 100.0 * static_cast<double>(pos) / duration;
+            percent = 100.0 * static_cast<double>(pos) / duration;
 
             shouldRecord = percent >= m_recordThresholdPercent;
             PrintDebug(L"視聴位置 = {:.1f} %", percent);
@@ -287,6 +288,11 @@ void CAnnictRecorderPlugin::CheckCurrentProgram()
         if (!shouldRecord)
         {
             PrintDebug(L"記録するための閾値 ({} %) に達していません。スキップします。", m_recordThresholdPercent);
+            m_lastRecordResult = {
+                false,
+                std::format(L"AnnictRecorder 待機中... ({:.0f}%)", percent)
+            };
+
             return;
         }
         
@@ -319,6 +325,18 @@ void CAnnictRecorderPlugin::CheckCurrentProgram()
         if (!IsAnime)
         {
             PrintDebug(L"アニメジャンルではありません。スキップします。");
+            m_lastRecordResult = {
+                false,
+                L"アニメジャンルではありません。"
+            };
+            m_pApp->AddLog(
+                std::format(
+                    L"アニメジャンルではありません。(番組名: {}, サービス名: {})",
+                    Program.pszEventName,
+                    Service.value().szServiceName
+                ).c_str()
+            );
+
             return;
         }
 
@@ -347,6 +365,18 @@ void CAnnictRecorderPlugin::CheckCurrentProgram()
         if (!ChannelDefinition.has_value())
         {
             PrintDebug(L"saya のチャンネル定義に存在しないチャンネルです。スキップします。(サービス名: {}, サービス ID: {})", Service.value().szServiceName, Service.value().ServiceID);
+            m_lastRecordResult = {
+                false,
+                L"未知のチャンネルです。"
+            };
+            m_pApp->AddLog(
+                std::format(
+                    L"saya のチャンネル定義に存在しないチャンネルです。(サービス名: {}, サービス ID: {})",
+                    Service.value().szServiceName,
+                    Service.value().ServiceID
+                ).c_str()
+            );
+
             return;
         }
 
