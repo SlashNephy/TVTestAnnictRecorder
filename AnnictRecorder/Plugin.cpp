@@ -339,13 +339,6 @@ void CAnnictRecorderPlugin::CheckCurrentProgram()
                 false,
                 L"アニメジャンルではありません。"
             };
-            m_pApp->AddLog(
-                std::format(
-                    L"アニメジャンルではありません。(番組名: {}, サービス名: {})",
-                    Program.pszEventName,
-                    Service.value().szServiceName
-                ).c_str()
-            );
 
             return;
         }
@@ -370,27 +363,7 @@ void CAnnictRecorderPlugin::CheckCurrentProgram()
             PrintDebug(L"チューニング空間の取得に失敗しました。(サービス ID: {}, サービス名: {})", Service.value().ServiceID, Service.value().szServiceName);
         }
         
-        // ChannelDefinition
-        const auto ChannelDefinition = FindSayaChannel(m_definitions, ChannelType, Service.value().ServiceID);
-        if (!ChannelDefinition.has_value())
-        {
-            PrintDebug(L"saya のチャンネル定義に存在しないチャンネルです。スキップします。(サービス名: {}, サービス ID: {})", Service.value().szServiceName, Service.value().ServiceID);
-            m_lastRecordResult = {
-                false,
-                L"未知のチャンネルです。"
-            };
-            m_pApp->AddLog(
-                std::format(
-                    L"saya のチャンネル定義に存在しないチャンネルです。(サービス名: {}, サービス ID: {})",
-                    Service.value().szServiceName,
-                    Service.value().ServiceID
-                ).c_str()
-            );
-
-            return;
-        }
-
-        const auto result = AnnictRecorder::CreateRecord(m_annictToken, Program, ChannelDefinition.value(), m_annictIds, m_dryRun);
+        const auto result = AnnictRecorder::CreateRecord(m_annictToken, Service.value(), Program, ChannelType, m_annictIds, m_definitions, m_dryRun);
         if (result.success)
         {
             m_pApp->AddLog(L"Annict に視聴記録を送信しました。");

@@ -3,6 +3,7 @@
 #include "pch.h"
 
 #include "AnnictApi.h"
+#include "SayaApi.h"
 
 namespace AnnictRecorder
 {
@@ -50,7 +51,10 @@ namespace AnnictRecorder
         if (episodeIterator == episodes.end())
         {
             PrintDebug(L"Annict でのエピソードデータが見つかりませんでした。スキップします。(TID={}, WorkID={})", syobocalProgram.titleId, annictWorkId);
-            return CreateRecordResult{};
+            return {
+                false,
+                L"Annictにエピソードデータが見つかりません。"
+            };
         }
 
         const auto& targetEpisode = *episodeIterator;
@@ -65,7 +69,7 @@ namespace AnnictRecorder
         const auto episodeNumber = !targetEpisode["number"].is_null() ? std::optional(targetEpisode["number"].get<uint16_t>()) : std::nullopt;
         const auto episodeNumberText = GetWStringOrNull(targetEpisode, "number_text");
 
-        return CreateRecordResult{
+        return {
             true,
             std::format(
                 L"#{:2d}「{}」を記録しました。",
@@ -89,7 +93,7 @@ namespace AnnictRecorder
 
         const auto workName = GetWStringOrNull(annictWork, "title");
 
-        return CreateRecordResult{
+        return {
             true,
             std::format(L"「{}」を記録しました。", workName.value_or(L"タイトル不明")),
             workName, std::nullopt, std::nullopt, std::nullopt
@@ -98,18 +102,32 @@ namespace AnnictRecorder
 
     static CreateRecordResult CreateRecord(
         const std::string& annictToken,
+        const TVTest::ServiceInfo& Service,
         const TVTest::ProgramInfo& Program,
-        const YAML::Node& ChannelDefinition,
+        const std::optional<const Saya::ChannelType> ChannelType,
         std::map<uint32_t, uint32_t>& AnnictIds,
+        YAML::Node& SayaDefinitions,
         const bool DryRun
     )
     {
+        // ChannelDefinition
+        const auto ChannelDefinition = FindSayaChannel(SayaDefinitions, ChannelType, Service.ServiceID);
+        if (!ChannelDefinition.has_value())
+        {
+            PrintDebug(L"sayaのチャンネル定義に存在しないチャンネルです。スキップします。(サービス名: {}, サービス ID: {})", Service.szServiceName, Service.ServiceID);
+
+            return {
+                false,
+                L"sayaのチャンネル定義に存在しないチャンネルです。"
+            };
+        }
+
         // しょぼいカレンダーに登録されていないチャンネルは無視
-        const auto rawSyoboCalId = ChannelDefinition["syobocalId"];
+        const auto rawSyoboCalId = ChannelDefinition.value()["syobocalId"];
         if (!rawSyoboCalId.IsDefined())
         {
             PrintDebug(L"しょぼいカレンダーに登録されていないチャンネルです。スキップします。");
-            return CreateRecordResult{
+            return {
                 false, L"しょぼいカレンダーに登録されていないチャンネルです。"
             };
         }
@@ -120,7 +138,7 @@ namespace AnnictRecorder
         if (!syoboCalProgram.has_value())
         {
             PrintDebug(L"しょぼいカレンダーに放送時刻が登録されていません。スキップします。(ChID={})", syoboCalChId);
-            return CreateRecordResult{
+            return {
                 false, L"しょぼいカレンダーに放送時刻データがありません。"
             };
         }
@@ -130,7 +148,7 @@ namespace AnnictRecorder
         if (!AnnictIds.contains(syoboCalTID))
         {
             PrintDebug(L"Annict での作品データが見つかりませんでした。スキップします。(TID={})", syoboCalTID);
-            return CreateRecordResult{
+            return {
                 false, L"Annictに作品データが見つかりません。"
             };
         }
@@ -140,7 +158,7 @@ namespace AnnictRecorder
         if (!annictWork.has_value())
         {
             PrintDebug(L"Annict での作品データが見つかりませんでした。スキップします。(TID={}, WorkID={})", syoboCalTID, annictWorkId);
-            return CreateRecordResult{
+            return {
                 false, L"Annictに作品データが見つかりません。"
             };
         }
