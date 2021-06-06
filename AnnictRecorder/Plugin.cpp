@@ -406,6 +406,7 @@ LRESULT CALLBACK CAnnictRecorderPlugin::EventCallback(const UINT Event, const LP
     case TVTest::EVENT_CHANNELCHANGE:
     case TVTest::EVENT_SERVICECHANGE:
     case TVTest::EVENT_SERVICEUPDATE:
+        pThis->m_lastRecordResult = {};
         pThis->CheckCurrentProgram();
 
         return true;
