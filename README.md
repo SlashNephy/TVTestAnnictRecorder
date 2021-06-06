@@ -3,7 +3,7 @@
 [![GitHub Workflow Status](https://img.shields.io/github/workflow/status/SlashNephy/TVTestAnnictRecorder/latest?style=flat-square)](https://github.com/SlashNephy/TVTestAnnictRecorder/actions)
 [![GitHub release (latest by date)](https://img.shields.io/github/v/release/SlashNephy/TVTestAnnictRecorder?style=flat-square)](https://github.com/SlashNephy/TVTestAnnictRecorder/releases)
 
-📝 視聴したアニメの視聴記録を自動で Annict に送信する TVTest プラグイン (TVTest ver.0.9.0 or later)
+📝 視聴したアニメを自動で Annict に記録する TVTest プラグイン (TVTest 0.9.0 以降が必要)
 
 [![statusbar.png](https://raw.githubusercontent.com/SlashNephy/TVTestAnnictRecorder/master/docs/statusbar.png)](https://github.com/SlashNephy/TVTestAnnictRecorder)
 
@@ -20,10 +20,9 @@
 
 - しょぼいカレンダーに登録されている放送局で視聴する必要があり, かつ放送時間データもしょぼいカレンダーに登録されている必要があります。
   - 余程のマイナーな放送局でない限り, 有志の方々がデータを登録されています。
-- しょぼいカレンダーと Annict の作品の対応が 1対1 ではないため, 記録されない作品もあります。
-  - 2021/6/5 現在, 4件見つかりました。
-- 2021/6/5 現在, Annict は しょぼいカレンダーの作品から逆引きする API を提供していません。そのため, 定期的に しょぼいカレンダー ID <-> Annict 作品 ID の対応データ (`docs/AnnictRecorder.ids.yml`) を生成する必要があります。
-- Annict 側に しょぼいカレンダー ID が登録されている必要があります。
+- 2021/6/5 現在, Annict は しょぼいカレンダーの作品から逆引きする API を提供していません。
+  - [kawaiioverflow/arm](https://github.com/kawaiioverflow/arm) で ID の相互変換ができる作品に限られます。
+  - エントリーは4千件以上あり, また頻繁に更新されており, 最近のアニメなら間違いなく追加されています。ありがとうございます。
 
 ## Configuration
 
@@ -42,7 +41,7 @@
 ; 途中から視聴した場合は視聴開始時間から 20% 分視聴した場合に記録します。
 ; TvtPlay で再生時にも同様な判定が行われます。
 ; デフォルト値: 20
-;ThresholdPercent=20
+; ThresholdPercent=20
 ```
 
 ## Build
@@ -54,6 +53,18 @@ vcpkg integrate install
 
 msbuild TVTestAnnictRecorder.sln -property:Configuration="Release" -property:Platform="x64" -m
 ```
+
+## Acknowledgements
+
+TVTestAnnictRecorder は以下の OSS プロジェクトを利用しています。ありがとうございます。
+
+- [kawaiioverflow/arm](https://github.com/kawaiioverflow/arm)
+- [xtne6f/TvtPlay](https://github.com/xtne6f/TvtPlay)
+- [whoshuu/cpr](https://github.com/whoshuu/cpr)
+- [jbeder/yaml-cpp](https://github.com/jbeder/yaml-cpp)
+- [nlohmann/json](https://github.com/nlohmann/json)
+- [zeux/pugixml](https://github.com/zeux/pugixml)
+- [microsoft/vcpkg](https://github.com/microsoft/vcpkg)
 
 ## License
 
