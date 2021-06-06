@@ -1,6 +1,7 @@
 ﻿#include "pch.h"
 
-#include "AnnictApi.h"
+#include "AnnictRecorder.h"
+#include "ArmApi.h"
 #include "Debug.h"
 #include "SayaApi.h"
 #include "TvtPlay.h"
@@ -28,7 +29,7 @@ class CAnnictRecorderPlugin final : public TVTest::CTVTestPlugin
     // Program ID をキーとして Annict に記録済かを保持する map
     std::map<u_long, bool> m_recorded{};
     // 前回の Annict の記録の結果を表す構造体
-    Annict::CreateRecordResult m_lastRecordResult{};
+    AnnictRecorder::CreateRecordResult m_lastRecordResult{};
     // CheckCurrentProgram 内の排他ロック
     std::mutex m_mutex{};
 
@@ -189,7 +190,7 @@ void CAnnictRecorderPlugin::LoadConfig()
         std::format(L"saya のチャンネル定義ファイルを読み込みました。(チャンネル数: {})", m_definitions["channels"].size()).c_str()
     );
 
-    m_annictIds = Annict::LoadArmJson();
+    m_annictIds = Arm::LoadArmJson();
     m_pApp->AddLog(
         std::format(L"kawaiioverflow/arm の定義ファイルを読み込みました。(作品数: {})", m_annictIds.size()).c_str()
     );
@@ -349,12 +350,25 @@ void CAnnictRecorderPlugin::CheckCurrentProgram()
             return;
         }
 
-        const auto result = Annict::CreateRecord(m_annictToken, Program, ChannelDefinition.value(), m_annictIds, m_dryRun);
+        const auto result = AnnictRecorder::CreateRecord(m_annictToken, Program, ChannelDefinition.value(), m_annictIds, m_dryRun);
         if (result.success)
         {
             m_pApp->AddLog(L"Annict に視聴記録を送信しました。");
             m_pApp->AddLog(
-                std::format(L"Annict 作品名: {}, エピソード名: {} ({})", result.workName.value_or(L""), result.episodeName.value_or(L""), result.episodeNumberText.value_or(L"")).c_str()
+                std::format(
+                    L"Annict 作品名: {}, エピソード名: {} ({})",
+                    result.workName.value_or(L"タイトル不明"),
+                    result.episodeName.value_or(L"サブタイトル不明"),
+                    result.episodeNumberText.value_or(L"話数不明")
+                ).c_str()
+            );
+        }
+        else
+        {
+            m_pApp->AddLog(L"Annict に視聴記録を送信できませんでした。Annict 上に見つからない作品か, しょぼいカレンダーに放送時間が登録されていません。", TVTest::LOG_TYPE_WARNING);
+            m_pApp->AddLog(result.message.c_str());
+            m_pApp->AddLog(
+                std::format(L"番組名: {}, サービス名: {}", Program.pszEventName, Service.value().szServiceName).c_str()
             );
         }
 
@@ -405,27 +419,7 @@ LRESULT CALLBACK CAnnictRecorderPlugin::EventCallback(const UINT Event, const LP
             if ((pInfo->Flags & TVTest::STATUS_ITEM_DRAW_FLAG_PREVIEW) == 0)
             {
                 // 通常の項目の描画
-                if (pThis->m_lastRecordResult.success)
-                {
-                    if (pThis->m_lastRecordResult.episodeNumber.has_value() && pThis->m_lastRecordResult.episodeName.has_value()) {
-                        status = std::format(
-                            L"#{}「{}」を記録しました。",
-                            pThis->m_lastRecordResult.episodeNumber.value(),
-                            pThis->m_lastRecordResult.episodeName.value()
-                        );
-                    }
-                    else if (pThis->m_lastRecordResult.workName.has_value())
-                    {
-                        status = std::format(
-                            L"{}を記録しました。",
-                            pThis->m_lastRecordResult.workName.value()
-                        );
-                    }
-                }
-                else
-                {
-                    status = L"AnnictRecorder 待機中...";
-                }
+                status = pThis->m_lastRecordResult.message;
             }
             else
             {
