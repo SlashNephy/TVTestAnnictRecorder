@@ -45,7 +45,9 @@ namespace AnnictRecorder
         const auto episodes = Annict::GetEpisodes(annictWorkId, annictToken);
         const auto episodeIterator = std::ranges::find_if(episodes, [syobocalProgram](const nlohmann::json& episode)
         {
-            return syobocalProgram.count == episode["number"].get<float_t>();  // NOLINT(clang-diagnostic-float-equal)
+            // 話数またはサブタイトルが一致
+            return (episode["number"].is_number() && syobocalProgram.count == episode["number"].get<float_t>())  // NOLINT(clang-diagnostic-float-equal)
+                || (syobocalProgram.subTitle.has_value() && !episode["title"].is_null() && syobocalProgram.subTitle.value() == episode["title"].get<std::string>());
         });
 
         if (episodeIterator == episodes.end())
