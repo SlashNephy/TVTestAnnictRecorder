@@ -2,6 +2,7 @@
 
 #include "AnnictRecorder.h"
 #include "ArmApi.h"
+#include "Config.h"
 #include "Debug.h"
 #include "SayaApi.h"
 #include "TvtPlay.h"
@@ -33,9 +34,7 @@ class CAnnictRecorderPlugin final : public TVTest::CTVTestPlugin
     // CheckCurrentProgram 内の排他ロック
     std::mutex m_mutex{};
 
-    char m_annictToken[MaxAnnictTokenLength]{};
-    int m_recordThresholdPercent = 20;
-    bool m_dryRun = false;
+    AnnictRecorder::Config m_config{};
     bool m_isReady = false;
     bool m_isEnabled = false;
 
@@ -180,10 +179,12 @@ void CAnnictRecorderPlugin::LoadConfig()
 
     wchar_t annictTokenW[MaxAnnictTokenLength];
     ::GetPrivateProfileString(L"Annict", L"Token", L"", annictTokenW, MaxAnnictTokenLength, m_iniFileName);
-    m_recordThresholdPercent = ::GetPrivateProfileInt(L"Record", L"ThresholdPercent", m_recordThresholdPercent, m_iniFileName);
-    m_dryRun = ::GetPrivateProfileInt(L"Record", L"DryRun", m_dryRun, m_iniFileName) > 0;
+    m_config.recordThresholdPercent = ::GetPrivateProfileInt(L"Record", L"ThresholdPercent", m_config.recordThresholdPercent, m_iniFileName);
+    m_config.shareOnTwitter = ::GetPrivateProfileInt(L"Record", L"ShareOnTwitter", m_config.shareOnTwitter, m_iniFileName) > 0;
+    m_config.shareOnFacebook = ::GetPrivateProfileInt(L"Record", L"ShareOnFacebook", m_config.shareOnFacebook, m_iniFileName) > 0;
+    m_config.dryRun = ::GetPrivateProfileInt(L"Record", L"DryRun", m_config.dryRun, m_iniFileName) > 0;
 
-    wcstombs_s(nullptr, m_annictToken, annictTokenW, MaxAnnictTokenLength - 1);
+    wcstombs_s(nullptr, m_config.annictToken, annictTokenW, MaxAnnictTokenLength - 1);
 
     m_definitions = Saya::LoadSayaDefinitions();
     m_pApp->AddLog(
@@ -195,7 +196,7 @@ void CAnnictRecorderPlugin::LoadConfig()
         std::format(L"kawaiioverflow/arm の定義ファイルを読み込みました。(作品数: {})", m_annictIds.size()).c_str()
     );
 
-    m_isReady = strlen(m_annictToken) > 0;
+    m_isReady = strlen(m_config.annictToken) > 0;
 }
 
 /*
@@ -261,7 +262,7 @@ void CAnnictRecorderPlugin::CheckCurrentProgram()
             const auto pos = GetTvtPlayPositionSec(tvtPlayHwnd);
             percent = 100.0 * pos / duration;
             
-            shouldRecord = percent >= m_recordThresholdPercent;
+            shouldRecord = percent >= m_config.recordThresholdPercent;
             PrintDebug(L"視聴位置 = {:.1f} %", percent);
         }
         else
@@ -281,13 +282,13 @@ void CAnnictRecorderPlugin::CheckCurrentProgram()
             const auto pos = time(nullptr) - watchStartTime;
             percent = 100.0 * static_cast<double>(pos) / duration;
 
-            shouldRecord = percent >= m_recordThresholdPercent;
+            shouldRecord = percent >= m_config.recordThresholdPercent;
             PrintDebug(L"視聴位置 = {:.1f} %", percent);
         }
 
         if (!shouldRecord)
         {
-            PrintDebug(L"記録するための閾値 ({} %) に達していません。スキップします。", m_recordThresholdPercent);
+            PrintDebug(L"記録するための閾値 ({} %) に達していません。スキップします。", m_config.recordThresholdPercent);
             m_lastRecordResult = {
                 false,
                 std::format(L"AnnictRecorder 待機中... ({:.0f}%)", percent)
@@ -363,7 +364,7 @@ void CAnnictRecorderPlugin::CheckCurrentProgram()
             PrintDebug(L"チューニング空間の取得に失敗しました。(サービス ID: {}, サービス名: {})", Service.value().ServiceID, Service.value().szServiceName);
         }
         
-        const auto result = AnnictRecorder::CreateRecord(m_annictToken, Service.value(), Program, ChannelType, m_annictIds, m_definitions, m_dryRun);
+        const auto result = AnnictRecorder::CreateRecord(m_config, Service.value(), Program, ChannelType, m_annictIds, m_definitions);
         if (result.success)
         {
             m_pApp->AddLog(L"Annict に視聴記録を送信しました。");

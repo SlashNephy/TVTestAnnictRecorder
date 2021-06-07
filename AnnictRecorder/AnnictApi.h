@@ -6,13 +6,15 @@
 
 namespace Annict
 {
-    static void PostRecord(const uint32_t episodeId, const std::string& annictToken)
+    static void PostRecord(const uint32_t episodeId, const std::string& annictToken, const bool shareOnTwitter, const bool shareOnFacebook)
     {
         cpr::Post(
             cpr::Url{"https://api.annict.com/v1/me/records"},
             cpr::Parameters{
                 {"episode_id", std::to_string(episodeId)},
-                {"access_token", annictToken}
+                {"access_token", annictToken},
+                {"share_twitter", shareOnTwitter ? "true" : "false"},
+                {"share_facebook", shareOnFacebook ? "true" : "false"}
             },
             cpr::UserAgent{AnnictRecorderUserAgent}
         );

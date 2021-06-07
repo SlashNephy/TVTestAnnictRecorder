@@ -3,6 +3,7 @@
 #include "pch.h"
 
 #include "AnnictApi.h"
+#include "Config.h"
 #include "SayaApi.h"
 
 namespace AnnictRecorder
@@ -37,12 +38,11 @@ namespace AnnictRecorder
     static CreateRecordResult CreateEpisodeRecord(
         const uint32_t annictWorkId,
         const SyoboCal::LookupProgramResult& syobocalProgram,
-        const std::string& annictToken,
-        const bool dryRun
+        const Config& Config
     )
     {
         // Annict からエピソード一覧を取得して, 該当のエピソードを見つける
-        const auto episodes = Annict::GetEpisodes(annictWorkId, annictToken);
+        const auto episodes = Annict::GetEpisodes(annictWorkId, Config.annictToken);
         const auto episodeIterator = std::ranges::find_if(episodes, [syobocalProgram](const nlohmann::json& episode)
         {
             // 話数またはサブタイトルが一致
@@ -60,10 +60,10 @@ namespace AnnictRecorder
         }
 
         const auto& targetEpisode = *episodeIterator;
-        if (!dryRun)
+        if (!Config.dryRun)
         {
             const auto annictEpisodeId = targetEpisode["id"].get<uint32_t>();
-            Annict::PostRecord(annictEpisodeId, annictToken);
+            Annict::PostRecord(annictEpisodeId, Config.annictToken, Config.shareOnTwitter, Config.shareOnFacebook);
         }
 
         const auto workName = GetWStringOrNull(targetEpisode["work"], "title");
@@ -85,12 +85,11 @@ namespace AnnictRecorder
     static CreateRecordResult CreateWorkRecord(
         const uint32_t annictWorkId,
         const nlohmann::json& annictWork,
-        const std::string& annictToken,
-        const bool dryRun
+        const Config& Config
     )
     {
-        if (!dryRun) {
-            Annict::PostMyStatus(annictWorkId, annictToken);
+        if (!Config.dryRun) {
+            Annict::PostMyStatus(annictWorkId, Config.annictToken);
         }
 
         const auto workName = GetWStringOrNull(annictWork, "title");
@@ -103,13 +102,12 @@ namespace AnnictRecorder
     }
 
     static CreateRecordResult CreateRecord(
-        const std::string& annictToken,
+        const Config& Config,
         const TVTest::ServiceInfo& Service,
         const TVTest::ProgramInfo& Program,
         const std::optional<const Saya::ChannelType> ChannelType,
         std::map<uint32_t, uint32_t>& AnnictIds,
-        YAML::Node& SayaDefinitions,
-        const bool DryRun
+        const YAML::Node& SayaDefinitions
     )
     {
         // ChannelDefinition
@@ -156,7 +154,7 @@ namespace AnnictRecorder
         }
 
         const auto annictWorkId = AnnictIds[syoboCalTID];
-        const auto annictWork = Annict::GetWorkOrNull(annictWorkId, annictToken);
+        const auto annictWork = Annict::GetWorkOrNull(annictWorkId, Config.annictToken);
         if (!annictWork.has_value())
         {
             PrintDebug(L"Annict での作品データが見つかりませんでした。スキップします。(TID={}, WorkID={})", syoboCalTID, annictWorkId);
@@ -168,11 +166,11 @@ namespace AnnictRecorder
         // エピソードで別れている場合, 該当のエピソードを記録
         if (!annictWork.value()["no_episodes"].get<bool>())
         {
-            return CreateEpisodeRecord(annictWorkId, syoboCalProgram.value(), annictToken, DryRun);
+            return CreateEpisodeRecord(annictWorkId, syoboCalProgram.value(), Config);
         }
 
         // エピソードで別れていない場合 (映画など), 作品自体を「見た」に設定
-        return CreateWorkRecord(annictWorkId, annictWork.value(), annictToken, DryRun);
+        return CreateWorkRecord(annictWorkId, annictWork.value(), Config);
 
     }
 }
