@@ -35,6 +35,8 @@ namespace SyoboCal
             cpr::UserAgent{AnnictRecorderUserAgent}
         );
 
+        PrintDebugW(L"ProgLookup", response.text);
+
         pugi::xml_document doc;
         if (!doc.load_string(response.text.c_str()))
         {
@@ -51,9 +53,10 @@ namespace SyoboCal
         const auto titleId = strtol(node.child_value("TID"), nullptr, 10);
         const auto count = strtod(node.child_value("Count"), nullptr);
         const auto rawSubTitle = node.child("STSubTitle");
-        const auto subTitle = rawSubTitle.empty() ? std::nullopt : std::optional(rawSubTitle.value());
+        const auto subTitle = rawSubTitle.empty() ? std::nullopt : std::optional(std::string(rawSubTitle.child_value()));
 
         PrintDebug(L"TID = {}, Count = {}, SubTitle = {}", titleId, count, subTitle.has_value());
+        PrintDebugW(L"SubTitle", subTitle.value_or("n/a"));
 
         return std::optional(
             LookupProgramResult{

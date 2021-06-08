@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 
 #include "pch.h"
 
@@ -11,7 +11,7 @@ namespace AnnictRecorder
     struct CreateRecordResult
     {
         bool success = false;
-        std::wstring message{L"AnnictRecorder ‘Ò‹@’†..."};
+        std::wstring message{L"AnnictRecorder å¾…æ©Ÿä¸­..."};
         std::optional<std::wstring> workName{};
         std::optional<std::wstring> episodeName{};
         std::optional<uint16_t> episodeNumber{};
@@ -25,7 +25,7 @@ namespace AnnictRecorder
             return std::nullopt;
         }
 
-        // ƒƒP[ƒ‹‚Ìİ’è
+        // ãƒ­ã‚±ãƒ¼ãƒ«ã®è¨­å®š
         setlocale(LC_ALL, ".utf8");
 
         wchar_t buf[256];
@@ -41,23 +41,33 @@ namespace AnnictRecorder
         const Config& Config
     )
     {
-        // Annict ‚©‚çƒGƒsƒ\[ƒhˆê——‚ğæ“¾‚µ‚Ä, ŠY“–‚ÌƒGƒsƒ\[ƒh‚ğŒ©‚Â‚¯‚é
+        // Annict ã‹ã‚‰ã‚¨ãƒ”ã‚½ãƒ¼ãƒ‰ä¸€è¦§ã‚’å–å¾—ã—ã¦, è©²å½“ã®ã‚¨ãƒ”ã‚½ãƒ¼ãƒ‰ã‚’è¦‹ã¤ã‘ã‚‹
         const auto episodes = Annict::GetEpisodes(annictWorkId, Config.annictToken);
         const auto episodeIterator = std::ranges::find_if(episodes, [syobocalProgram](const nlohmann::json& episode)
         {
-            // ˜b”‚Ü‚½‚ÍƒTƒuƒ^ƒCƒgƒ‹‚ªˆê’v
-            // ‚Ü‚ê‚É Annict ‘¤‚É number ‚¾‚¯İ’è‚³‚ê‚Ä‚¢‚È‚¢ƒf[ƒ^‚ª‚ ‚é‚Ì‚Å•¶š—ñ”äŠr‚·‚é
-            return (episode["number"].is_number() && syobocalProgram.count == episode["number"].get<float_t>())  // NOLINT(clang-diagnostic-float-equal)
-                || (episode["number_text"].is_string() && std::format("‘æ{}˜b", syobocalProgram.count) == episode["number_text"].get<std::string>())
-                || (episode["title"].is_string() && syobocalProgram.subTitle.has_value() && syobocalProgram.subTitle.value() == episode["title"].get<std::string>());
+            // è©±æ•°ãŒä¸€è‡´
+            if (episode["number"].is_number() && syobocalProgram.count == episode["number"].get<float_t>())  // NOLINT(clang-diagnostic-float-equal)
+            {
+                return true;
+            }
+
+            // è©±æ•° (ãƒ†ã‚­ã‚¹ãƒˆ) ãŒä¸€è‡´
+            // ã¾ã‚Œã« Annict å´ã« number ã ã‘è¨­å®šã•ã‚Œã¦ã„ãªã„ãƒ‡ãƒ¼ã‚¿ãŒã‚ã‚‹ã®ã§æ–‡å­—åˆ—æ¯”è¼ƒã™ã‚‹
+            if (const auto numberText = std::format("ç¬¬{:.0f}è©±", syobocalProgram.count); episode["number_text"].is_string() && numberText == episode["number_text"].get<std::string>())
+            {
+                return true;
+            }
+
+            // ã‚µãƒ–ã‚¿ã‚¤ãƒˆãƒ«ãŒä¸€è‡´
+            return episode["title"].is_string() && syobocalProgram.subTitle.has_value() && syobocalProgram.subTitle.value() == episode["title"].get<std::string>();
         });
 
         if (episodeIterator == episodes.end())
         {
-            PrintDebug(L"Annict ‚Å‚ÌƒGƒsƒ\[ƒhƒf[ƒ^‚ªŒ©‚Â‚©‚è‚Ü‚¹‚ñ‚Å‚µ‚½BƒXƒLƒbƒv‚µ‚Ü‚·B(TID={}, WorkID={})", syobocalProgram.titleId, annictWorkId);
+            PrintDebug(L"Annict ã§ã®ã‚¨ãƒ”ã‚½ãƒ¼ãƒ‰ãƒ‡ãƒ¼ã‚¿ãŒè¦‹ã¤ã‹ã‚Šã¾ã›ã‚“ã§ã—ãŸã€‚ã‚¹ã‚­ãƒƒãƒ—ã—ã¾ã™ã€‚(TID={}, WorkID={})", syobocalProgram.titleId, annictWorkId);
             return {
                 false,
-                L"Annict‚ÉƒGƒsƒ\[ƒhƒf[ƒ^‚ªŒ©‚Â‚©‚è‚Ü‚¹‚ñB"
+                L"Annictã«ã‚¨ãƒ”ã‚½ãƒ¼ãƒ‰ãƒ‡ãƒ¼ã‚¿ãŒè¦‹ã¤ã‹ã‚Šã¾ã›ã‚“ã€‚"
             };
         }
 
@@ -76,9 +86,9 @@ namespace AnnictRecorder
         return {
             true,
             std::format(
-                L"#{:2d}u{}v‚ğ‹L˜^‚µ‚Ü‚µ‚½B",
+                L"#{:2d}ã€Œ{}ã€ã‚’è¨˜éŒ²ã—ã¾ã—ãŸã€‚",
                 episodeNumber.value_or(0),
-                episodeName.value_or(L"ƒTƒuƒ^ƒCƒgƒ‹•s–¾")
+                episodeName.value_or(L"ã‚µãƒ–ã‚¿ã‚¤ãƒˆãƒ«ä¸æ˜")
             ),
             workName, episodeName, episodeNumber, episodeNumberText
         };
@@ -98,7 +108,7 @@ namespace AnnictRecorder
 
         return {
             true,
-            std::format(L"u{}v‚ğ‹L˜^‚µ‚Ü‚µ‚½B", workName.value_or(L"ƒ^ƒCƒgƒ‹•s–¾")),
+            std::format(L"ã€Œ{}ã€ã‚’è¨˜éŒ²ã—ã¾ã—ãŸã€‚", workName.value_or(L"ã‚¿ã‚¤ãƒˆãƒ«ä¸æ˜")),
             workName, std::nullopt, std::nullopt, std::nullopt
         };
     }
@@ -116,42 +126,42 @@ namespace AnnictRecorder
         const auto ChannelDefinition = FindSayaChannel(SayaDefinitions, ChannelType, Service.ServiceID);
         if (!ChannelDefinition.has_value())
         {
-            PrintDebug(L"saya‚Ìƒ`ƒƒƒ“ƒlƒ‹’è‹`‚É‘¶İ‚µ‚È‚¢ƒ`ƒƒƒ“ƒlƒ‹‚Å‚·BƒXƒLƒbƒv‚µ‚Ü‚·B(ƒT[ƒrƒX–¼: {}, ƒT[ƒrƒX ID: {})", Service.szServiceName, Service.ServiceID);
+            PrintDebug(L"sayaã®ãƒãƒ£ãƒ³ãƒãƒ«å®šç¾©ã«å­˜åœ¨ã—ãªã„ãƒãƒ£ãƒ³ãƒãƒ«ã§ã™ã€‚ã‚¹ã‚­ãƒƒãƒ—ã—ã¾ã™ã€‚(ã‚µãƒ¼ãƒ“ã‚¹å: {}, ã‚µãƒ¼ãƒ“ã‚¹ ID: {})", Service.szServiceName, Service.ServiceID);
 
             return {
                 false,
-                L"saya‚Ìƒ`ƒƒƒ“ƒlƒ‹’è‹`‚É‘¶İ‚µ‚È‚¢ƒ`ƒƒƒ“ƒlƒ‹‚Å‚·B"
+                L"sayaã®ãƒãƒ£ãƒ³ãƒãƒ«å®šç¾©ã«å­˜åœ¨ã—ãªã„ãƒãƒ£ãƒ³ãƒãƒ«ã§ã™ã€‚"
             };
         }
 
-        // ‚µ‚å‚Ú‚¢ƒJƒŒƒ“ƒ_[‚É“o˜^‚³‚ê‚Ä‚¢‚È‚¢ƒ`ƒƒƒ“ƒlƒ‹‚Í–³‹
+        // ã—ã‚‡ã¼ã„ã‚«ãƒ¬ãƒ³ãƒ€ãƒ¼ã«ç™»éŒ²ã•ã‚Œã¦ã„ãªã„ãƒãƒ£ãƒ³ãƒãƒ«ã¯ç„¡è¦–
         const auto rawSyoboCalId = ChannelDefinition.value()["syobocalId"];
         if (!rawSyoboCalId.IsDefined())
         {
-            PrintDebug(L"‚µ‚å‚Ú‚¢ƒJƒŒƒ“ƒ_[‚É“o˜^‚³‚ê‚Ä‚¢‚È‚¢ƒ`ƒƒƒ“ƒlƒ‹‚Å‚·BƒXƒLƒbƒv‚µ‚Ü‚·B");
+            PrintDebug(L"ã—ã‚‡ã¼ã„ã‚«ãƒ¬ãƒ³ãƒ€ãƒ¼ã«ç™»éŒ²ã•ã‚Œã¦ã„ãªã„ãƒãƒ£ãƒ³ãƒãƒ«ã§ã™ã€‚ã‚¹ã‚­ãƒƒãƒ—ã—ã¾ã™ã€‚");
             return {
-                false, L"‚µ‚å‚Ú‚¢ƒJƒŒƒ“ƒ_[‚É“o˜^‚³‚ê‚Ä‚¢‚È‚¢ƒ`ƒƒƒ“ƒlƒ‹‚Å‚·B"
+                false, L"ã—ã‚‡ã¼ã„ã‚«ãƒ¬ãƒ³ãƒ€ãƒ¼ã«ç™»éŒ²ã•ã‚Œã¦ã„ãªã„ãƒãƒ£ãƒ³ãƒãƒ«ã§ã™ã€‚"
             };
         }
 
-        // ‚µ‚å‚Ú‚¢ƒJƒŒƒ“ƒ_[‚É•ú‘—‚Å–â‚¢‡‚í‚¹‚é
+        // ã—ã‚‡ã¼ã„ã‚«ãƒ¬ãƒ³ãƒ€ãƒ¼ã«æ”¾é€æ™‚åˆ»ã§å•ã„åˆã‚ã›ã‚‹
         const auto syoboCalChId = rawSyoboCalId.as<int>();
         const auto syoboCalProgram = SyoboCal::LookupProgram(Program.StartTime, Program.Duration, syoboCalChId);
         if (!syoboCalProgram.has_value())
         {
-            PrintDebug(L"‚µ‚å‚Ú‚¢ƒJƒŒƒ“ƒ_[‚É•ú‘—‚ª“o˜^‚³‚ê‚Ä‚¢‚Ü‚¹‚ñBƒXƒLƒbƒv‚µ‚Ü‚·B(ChID={})", syoboCalChId);
+            PrintDebug(L"ã—ã‚‡ã¼ã„ã‚«ãƒ¬ãƒ³ãƒ€ãƒ¼ã«æ”¾é€æ™‚åˆ»ãŒç™»éŒ²ã•ã‚Œã¦ã„ã¾ã›ã‚“ã€‚ã‚¹ã‚­ãƒƒãƒ—ã—ã¾ã™ã€‚(ChID={})", syoboCalChId);
             return {
-                false, L"‚µ‚å‚Ú‚¢ƒJƒŒƒ“ƒ_[‚É•ú‘—ƒf[ƒ^‚ª‚ ‚è‚Ü‚¹‚ñB"
+                false, L"ã—ã‚‡ã¼ã„ã‚«ãƒ¬ãƒ³ãƒ€ãƒ¼ã«æ”¾é€æ™‚åˆ»ãƒ‡ãƒ¼ã‚¿ãŒã‚ã‚Šã¾ã›ã‚“ã€‚"
             };
         }
 
-        // kawaiioverflow/arm ‚©‚ç ‚µ‚å‚Ú‚¢ƒJƒŒƒ“ƒ_[ TID ¨ Annict Work ID ‚ğŒ©‚Â‚¯‚é
+        // kawaiioverflow/arm ã‹ã‚‰ ã—ã‚‡ã¼ã„ã‚«ãƒ¬ãƒ³ãƒ€ãƒ¼ TID â†’ Annict Work ID ã‚’è¦‹ã¤ã‘ã‚‹
         const auto syoboCalTID = syoboCalProgram.value().titleId;
         if (!AnnictIds.contains(syoboCalTID))
         {
-            PrintDebug(L"Annict ‚Å‚Ìì•iƒf[ƒ^‚ªŒ©‚Â‚©‚è‚Ü‚¹‚ñ‚Å‚µ‚½BƒXƒLƒbƒv‚µ‚Ü‚·B(TID={})", syoboCalTID);
+            PrintDebug(L"Annict ã§ã®ä½œå“ãƒ‡ãƒ¼ã‚¿ãŒè¦‹ã¤ã‹ã‚Šã¾ã›ã‚“ã§ã—ãŸã€‚ã‚¹ã‚­ãƒƒãƒ—ã—ã¾ã™ã€‚(TID={})", syoboCalTID);
             return {
-                false, L"Annict‚Éì•iƒf[ƒ^‚ªŒ©‚Â‚©‚è‚Ü‚¹‚ñB"
+                false, L"Annictã«ä½œå“ãƒ‡ãƒ¼ã‚¿ãŒè¦‹ã¤ã‹ã‚Šã¾ã›ã‚“ã€‚"
             };
         }
 
@@ -159,19 +169,19 @@ namespace AnnictRecorder
         const auto annictWork = Annict::GetWorkOrNull(annictWorkId, Config.annictToken);
         if (!annictWork.has_value())
         {
-            PrintDebug(L"Annict ‚Å‚Ìì•iƒf[ƒ^‚ªŒ©‚Â‚©‚è‚Ü‚¹‚ñ‚Å‚µ‚½BƒXƒLƒbƒv‚µ‚Ü‚·B(TID={}, WorkID={})", syoboCalTID, annictWorkId);
+            PrintDebug(L"Annict ã§ã®ä½œå“ãƒ‡ãƒ¼ã‚¿ãŒè¦‹ã¤ã‹ã‚Šã¾ã›ã‚“ã§ã—ãŸã€‚ã‚¹ã‚­ãƒƒãƒ—ã—ã¾ã™ã€‚(TID={}, WorkID={})", syoboCalTID, annictWorkId);
             return {
-                false, L"Annict‚Éì•iƒf[ƒ^‚ªŒ©‚Â‚©‚è‚Ü‚¹‚ñB"
+                false, L"Annictã«ä½œå“ãƒ‡ãƒ¼ã‚¿ãŒè¦‹ã¤ã‹ã‚Šã¾ã›ã‚“ã€‚"
             };
         }
 
-        // ƒGƒsƒ\[ƒh‚Å•Ê‚ê‚Ä‚¢‚éê‡, ŠY“–‚ÌƒGƒsƒ\[ƒh‚ğ‹L˜^
+        // ã‚¨ãƒ”ã‚½ãƒ¼ãƒ‰ã§åˆ¥ã‚Œã¦ã„ã‚‹å ´åˆ, è©²å½“ã®ã‚¨ãƒ”ã‚½ãƒ¼ãƒ‰ã‚’è¨˜éŒ²
         if (!annictWork.value()["no_episodes"].get<bool>())
         {
             return CreateEpisodeRecord(annictWorkId, syoboCalProgram.value(), Config);
         }
 
-        // ƒGƒsƒ\[ƒh‚Å•Ê‚ê‚Ä‚¢‚È‚¢ê‡ (‰f‰æ‚È‚Ç), ì•i©‘Ì‚ğuŒ©‚½v‚Éİ’è
+        // ã‚¨ãƒ”ã‚½ãƒ¼ãƒ‰ã§åˆ¥ã‚Œã¦ã„ãªã„å ´åˆ (æ˜ ç”»ãªã©), ä½œå“è‡ªä½“ã‚’ã€Œè¦‹ãŸã€ã«è¨­å®š
         return CreateWorkRecord(annictWorkId, annictWork.value(), Config);
 
     }

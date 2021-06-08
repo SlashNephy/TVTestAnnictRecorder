@@ -23,7 +23,18 @@ void PrintDebug(const wchar_t* format, const Variable&... variables)
     OutputDebugString(message.c_str());   
 }
 
+inline void PrintDebugW(const std::wstring& label, const std::string& str)
+{
+    // ƒƒP[ƒ‹‚Ìİ’è
+    setlocale(LC_ALL, ".utf8");
+
+    wchar_t buf[1024];
+    mbstowcs_s(nullptr, buf, str.c_str(), 1023);
+    PrintDebug(L"{}: {}", label.c_str(), buf);
+}
+
 #define STOP while (true) {}
 #else
 #define PrintDebug __noop
+#define PrintDebugW __noop
 #endif
