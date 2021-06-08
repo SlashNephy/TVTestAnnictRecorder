@@ -20,7 +20,7 @@ namespace AnnictRecorder
 
     static std::optional<std::wstring> GetWStringOrNull(const nlohmann::json& json, const std::string& key)
     {
-        if (!json.is_object() || json[key].is_null())
+        if (!json.is_object() || !json[key].is_string())
         {
             return std::nullopt;
         }
@@ -46,8 +46,10 @@ namespace AnnictRecorder
         const auto episodeIterator = std::ranges::find_if(episodes, [syobocalProgram](const nlohmann::json& episode)
         {
             // 話数またはサブタイトルが一致
+            // まれに Annict 側に number だけ設定されていないデータがあるので文字列比較する
             return (episode["number"].is_number() && syobocalProgram.count == episode["number"].get<float_t>())  // NOLINT(clang-diagnostic-float-equal)
-                || (syobocalProgram.subTitle.has_value() && !episode["title"].is_null() && syobocalProgram.subTitle.value() == episode["title"].get<std::string>());
+                || (episode["number_text"].is_string() && std::format("第{}話", syobocalProgram.count) == episode["number_text"].get<std::string>())
+                || (episode["title"].is_string() && syobocalProgram.subTitle.has_value() && syobocalProgram.subTitle.value() == episode["title"].get<std::string>());
         });
 
         if (episodeIterator == episodes.end())
@@ -68,7 +70,7 @@ namespace AnnictRecorder
 
         const auto workName = GetWStringOrNull(targetEpisode["work"], "title");
         const auto episodeName = GetWStringOrNull(targetEpisode, "title");
-        const auto episodeNumber = !targetEpisode["number"].is_null() ? std::optional(targetEpisode["number"].get<uint16_t>()) : std::nullopt;
+        const auto episodeNumber = targetEpisode["number"].is_number() ? std::optional(targetEpisode["number"].get<uint16_t>()) : std::nullopt;
         const auto episodeNumberText = GetWStringOrNull(targetEpisode, "number_text");
 
         return {

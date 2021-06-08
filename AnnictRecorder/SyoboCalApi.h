@@ -53,7 +53,7 @@ namespace SyoboCal
         const auto rawSubTitle = node.child("STSubTitle");
         const auto subTitle = rawSubTitle.empty() ? std::nullopt : std::optional(rawSubTitle.value());
 
-        PrintDebug(L"TID = {}, Count = {}", titleId, count);
+        PrintDebug(L"TID = {}, Count = {}, SubTitle = {}", titleId, count, subTitle.has_value());
 
         return std::optional(
             LookupProgramResult{
