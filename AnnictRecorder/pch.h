@@ -20,6 +20,7 @@
 #include <string>
 #include <tchar.h>
 #include <mutex>
+#include <thread>
 
 #include <Shlwapi.h>
 #pragma comment(lib, "shlwapi.lib")

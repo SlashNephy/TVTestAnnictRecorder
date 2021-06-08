@@ -23,8 +23,10 @@ class CAnnictRecorderPlugin final : public TVTest::CTVTestPlugin
 
     // saya のチャンネル定義 yml
     YAML::Node m_definitions{};
+    std::future<void> m_definitionsFuture{};
     // しょぼいカレンダー TID をキーとして Annict 作品 ID を保持する map
     std::map<uint32_t, uint32_t> m_annictIds{};
+    std::future<void> m_annictIdsFuture{};
     // Program ID をキーとして番組の視聴を開始したエポック秒を保持する map
     std::map<u_long, time_t> m_watchStartTime{};
     // Program ID をキーとして Annict に記録済かを保持する map
@@ -179,22 +181,46 @@ void CAnnictRecorderPlugin::LoadConfig()
 
     wchar_t annictTokenW[MaxAnnictTokenLength];
     ::GetPrivateProfileString(L"Annict", L"Token", L"", annictTokenW, MaxAnnictTokenLength, m_iniFileName);
+    wcstombs_s(nullptr, m_config.annictToken, annictTokenW, MaxAnnictTokenLength - 1);
     m_config.recordThresholdPercent = ::GetPrivateProfileInt(L"Record", L"ThresholdPercent", m_config.recordThresholdPercent, m_iniFileName);
     m_config.shareOnTwitter = ::GetPrivateProfileInt(L"Record", L"ShareOnTwitter", m_config.shareOnTwitter, m_iniFileName) > 0;
     m_config.shareOnFacebook = ::GetPrivateProfileInt(L"Record", L"ShareOnFacebook", m_config.shareOnFacebook, m_iniFileName) > 0;
     m_config.dryRun = ::GetPrivateProfileInt(L"Record", L"DryRun", m_config.dryRun, m_iniFileName) > 0;
 
-    wcstombs_s(nullptr, m_config.annictToken, annictTokenW, MaxAnnictTokenLength - 1);
+    m_definitionsFuture = std::async(std::launch::async, [this]
+    {
+        try
+        {
+            m_definitions = Saya::LoadSayaDefinitions();
+            m_pApp->AddLog(
+                std::format(L"saya のチャンネル定義ファイルを読み込みました。(チャンネル数: {})", m_definitions["channels"].size()).c_str()
+            );
+        }
+        catch (cpr::Error&)
+        {
+            m_pApp->AddLog(
+                std::format(L"saya のチャンネル定義ファイルの読み込みに失敗しました。").c_str(),
+                TVTest::LOG_TYPE_ERROR
+            );
+        }
+    });
 
-    m_definitions = Saya::LoadSayaDefinitions();
-    m_pApp->AddLog(
-        std::format(L"saya のチャンネル定義ファイルを読み込みました。(チャンネル数: {})", m_definitions["channels"].size()).c_str()
-    );
-
-    m_annictIds = Arm::LoadArmJson();
-    m_pApp->AddLog(
-        std::format(L"kawaiioverflow/arm の定義ファイルを読み込みました。(作品数: {})", m_annictIds.size()).c_str()
-    );
+    m_annictIdsFuture = std::async(std::launch::async, [this]
+    {
+        try {
+            Arm::LoadArmJson(m_annictIds);
+            m_pApp->AddLog(
+                std::format(L"kawaiioverflow/arm の定義ファイルを読み込みました。(作品数: {})", m_annictIds.size()).c_str()
+            );
+        }
+        catch (cpr::Error&)
+        {
+            m_pApp->AddLog(
+                std::format(L"kawaiioverflow/arm の定義ファイルの読み込みに失敗しました。").c_str(),
+                TVTest::LOG_TYPE_ERROR
+            );
+        }
+    });
 
     m_isReady = strlen(m_config.annictToken) > 0;
 }
@@ -208,6 +234,26 @@ void CAnnictRecorderPlugin::CheckCurrentProgram()
     if (!m_isReady || !m_isEnabled)
     {
         PrintDebug(L"プラグインは無効化されています。");
+        return;
+    }
+
+    if (m_definitionsFuture.wait_for(std::chrono::seconds(0)) != std::future_status::ready || m_definitions.size() == 0)
+    {
+        m_lastRecordResult = {
+            false,
+            L"sayaのチャンネル定義ファイルが利用できません。"
+        };
+        PrintDebug(L"saya のチャンネル定義ファイルが利用できません。");
+        return;
+    }
+
+    if (m_annictIdsFuture.wait_for(std::chrono::seconds(0)) != std::future_status::ready || m_annictIds.empty())
+    {
+        m_lastRecordResult = {
+            false,
+            L"kawaiioverflow/armの定義ファイルが利用できません。"
+        };
+        PrintDebug(L"kawaiioverflow/arm の定義ファイルが利用できません。");
         return;
     }
 
@@ -408,7 +454,10 @@ LRESULT CALLBACK CAnnictRecorderPlugin::EventCallback(const UINT Event, const LP
         if (pThis->m_isEnabled)
         {
             pThis->Enable();
-            pThis->CheckCurrentProgram();
+            std::async(std::launch::async, [pThis]
+            {
+                pThis->CheckCurrentProgram();
+            });
         }
         else
         {
@@ -421,7 +470,10 @@ LRESULT CALLBACK CAnnictRecorderPlugin::EventCallback(const UINT Event, const LP
     case TVTest::EVENT_SERVICECHANGE:
     case TVTest::EVENT_SERVICEUPDATE:
         pThis->m_lastRecordResult = {};
-        pThis->CheckCurrentProgram();
+        std::async(std::launch::async, [pThis]
+        {
+            pThis->CheckCurrentProgram();
+        });
 
         return true;
 

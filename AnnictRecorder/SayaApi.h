@@ -8,7 +8,7 @@ namespace Saya
 {
     constexpr auto DefinitionsYmlUrl = "https://raw.githubusercontent.com/SlashNephy/saya/dev/docs/definitions.yml";
 
-    inline YAML::Node LoadSayaDefinitions()
+    static YAML::Node LoadSayaDefinitions()
     {
         const auto response = cpr::Get(
             cpr::Url{DefinitionsYmlUrl},
