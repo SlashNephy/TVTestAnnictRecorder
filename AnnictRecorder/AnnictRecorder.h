@@ -83,14 +83,44 @@ namespace AnnictRecorder
         const auto episodeNumber = targetEpisode["number"].is_number() ? std::optional(targetEpisode["number"].get<uint16_t>()) : std::nullopt;
         const auto episodeNumberText = GetWStringOrNull(targetEpisode, "number_text");
 
+        std::wstring message;
+        if (episodeNumber.has_value()) {
+            message = std::format(
+                L"#{}「{}」を記録しました。",
+                episodeNumber.value(),
+                episodeName.value_or(L"？？？")
+            );
+        }
+        else if (episodeNumberText.has_value())
+        {
+            message = std::format(
+                L"{}「{}」を記録しました。",
+                episodeNumberText.value(),
+                episodeName.value_or(L"？？？")
+            );
+        }
+        else if (episodeName.has_value())
+        {
+            message = std::format(
+                L"「{}」を記録しました。",
+                episodeName.value_or(L"？？？")
+            );
+        }
+        else
+        {
+            message = std::format(
+                L"「{}」を記録しました。",
+                workName.value_or(L"？？？")
+            );
+        }
+
         return {
             true,
-            std::format(
-                L"#{:2d}「{}」を記録しました。",
-                episodeNumber.value_or(0),
-                episodeName.value_or(L"サブタイトル不明")
-            ),
-            workName, episodeName, episodeNumber, episodeNumberText
+            message,
+            workName,
+            episodeName,
+            episodeNumber,
+            episodeNumberText
         };
     }
 
