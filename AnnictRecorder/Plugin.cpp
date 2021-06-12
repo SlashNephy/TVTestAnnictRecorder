@@ -297,6 +297,11 @@ void CAnnictRecorderPlugin::CheckCurrentProgram()
         // 番組の固有 ID
         const auto programId = 100000ul * Program.ServiceID + Program.EventID;
 
+        if (m_recorded[programId]) {
+            PrintDebug(L"既に Annict に記録済です。スキップします。");
+            return;
+        }
+
         // TvtPlayHwnd
         const auto tvtPlayHwnd = FindTvtPlayFrame();
 
@@ -306,7 +311,7 @@ void CAnnictRecorderPlugin::CheckCurrentProgram()
         if (const auto duration = static_cast<double>(Program.Duration); tvtPlayHwnd)
         {
             const auto pos = GetTvtPlayPositionSec(tvtPlayHwnd);
-            percent = 100.0 * pos / duration;
+            percent = duration > 0 ? 100.0 * pos / duration : 100;
             
             shouldRecord = percent >= m_config.recordThresholdPercent;
             PrintDebug(L"視聴位置 = {:.1f} %", percent);
@@ -326,7 +331,7 @@ void CAnnictRecorderPlugin::CheckCurrentProgram()
             }
 
             const auto pos = time(nullptr) - watchStartTime;
-            percent = 100.0 * static_cast<double>(pos) / duration;
+            percent = duration > 0 ? 100.0 * static_cast<double>(pos) / duration : 100;
 
             shouldRecord = percent >= m_config.recordThresholdPercent;
             PrintDebug(L"視聴位置 = {:.1f} %", percent);
@@ -340,11 +345,6 @@ void CAnnictRecorderPlugin::CheckCurrentProgram()
                 std::format(L"AnnictRecorder 待機中... ({:.0f}%)", percent)
             };
 
-            return;
-        }
-        
-        if (m_recorded[programId]) {
-            PrintDebug(L"既に Annict に記録済です。スキップします。");
             return;
         }
 
@@ -454,10 +454,11 @@ LRESULT CALLBACK CAnnictRecorderPlugin::EventCallback(const UINT Event, const LP
         if (pThis->m_isEnabled)
         {
             pThis->Enable();
-            std::async(std::launch::async, [pThis]
+
+            std::thread([pThis]
             {
                 pThis->CheckCurrentProgram();
-            });
+            }).detach();
         }
         else
         {
@@ -470,10 +471,11 @@ LRESULT CALLBACK CAnnictRecorderPlugin::EventCallback(const UINT Event, const LP
     case TVTest::EVENT_SERVICECHANGE:
     case TVTest::EVENT_SERVICEUPDATE:
         pThis->m_lastRecordResult = {};
-        std::async(std::launch::async, [pThis]
+
+        std::thread([pThis]
         {
             pThis->CheckCurrentProgram();
-        });
+        }).detach();
 
         return true;
 
