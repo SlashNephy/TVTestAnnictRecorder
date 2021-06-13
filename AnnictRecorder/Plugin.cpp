@@ -455,10 +455,7 @@ LRESULT CALLBACK CAnnictRecorderPlugin::EventCallback(const UINT Event, const LP
         {
             pThis->Enable();
 
-            std::thread([pThis]
-            {
-                pThis->CheckCurrentProgram();
-            }).detach();
+            pThis->CheckCurrentProgram();
         }
         else
         {
@@ -472,10 +469,7 @@ LRESULT CALLBACK CAnnictRecorderPlugin::EventCallback(const UINT Event, const LP
     case TVTest::EVENT_SERVICEUPDATE:
         pThis->m_lastRecordResult = {};
 
-        std::thread([pThis]
-        {
-            pThis->CheckCurrentProgram();
-        }).detach();
+        pThis->CheckCurrentProgram();
 
         return true;
 
