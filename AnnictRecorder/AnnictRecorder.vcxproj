@@ -194,6 +194,7 @@
     <ClInclude Include="AnnictApi.h" />
     <ClInclude Include="AnnictRecorder.h" />
     <ClInclude Include="ArmApi.h" />
+    <ClInclude Include="Title.h" />
     <ClInclude Include="Common.h" />
     <ClInclude Include="Config.h" />
     <ClInclude Include="Debug.h" />

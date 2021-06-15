@@ -5,6 +5,7 @@
 #include "AnnictApi.h"
 #include "Config.h"
 #include "SayaApi.h"
+#include "Title.h"
 
 namespace AnnictRecorder
 {
@@ -25,46 +26,44 @@ namespace AnnictRecorder
             return std::nullopt;
         }
 
-        // ロケールの設定
-        setlocale(LC_ALL, ".utf8");
-
-        wchar_t buf[256];
         const auto value = json[key].get<std::string>();
-        mbstowcs_s(nullptr, buf, value.c_str(), 255);
-
-        return std::optional(buf);
+        return std::optional(Multi2Wide(value));
     }
 
     static CreateRecordResult CreateEpisodeRecord(
         const uint32_t annictWorkId,
-        const SyoboCal::LookupProgramResult& syobocalProgram,
+        const std::optional<float_t> episodeCount,
+        const std::optional<std::string> episodeTitle,
         const Config& Config
     )
     {
         // Annict からエピソード一覧を取得して, 該当のエピソードを見つける
         const auto episodes = Annict::GetEpisodes(annictWorkId, Config.annictToken);
-        const auto episodeIterator = std::ranges::find_if(episodes, [syobocalProgram](const nlohmann::json& episode)
+        const auto episodeIterator = std::ranges::find_if(episodes, [episodeCount, episodeTitle](const nlohmann::json& episode)
         {
             // 話数が一致
-            if (episode["number"].is_number() && syobocalProgram.count == episode["number"].get<float_t>())  // NOLINT(clang-diagnostic-float-equal)
+            if (episodeCount.has_value() && episode["number"].is_number() && episodeCount.value() == episode["number"].get<float_t>())  // NOLINT(clang-diagnostic-float-equal)
             {
                 return true;
             }
 
             // 話数 (テキスト) が一致
             // まれに Annict 側に number だけ設定されていないデータがあるので文字列比較する
-            if (const auto numberText = std::format("第{:.0f}話", syobocalProgram.count); episode["number_text"].is_string() && numberText == episode["number_text"].get<std::string>())
+            if (episodeCount.has_value())
             {
-                return true;
+                if (const auto numberText = std::format("第{:.0f}話", episodeCount.value()); episode["number_text"].is_string() && numberText == episode["number_text"].get<std::string>())
+                {
+                    return true;
+                }
             }
-
+            
             // サブタイトルが一致
-            return episode["title"].is_string() && syobocalProgram.subTitle.has_value() && syobocalProgram.subTitle.value() == episode["title"].get<std::string>();
+            return episodeTitle.has_value() && episode["title"].is_string() && episodeTitle.value() == episode["title"].get<std::string>();
         });
 
         if (episodeIterator == episodes.end())
         {
-            PrintDebug(L"Annict でのエピソードデータが見つかりませんでした。スキップします。(TID={}, WorkID={})", syobocalProgram.titleId, annictWorkId);
+            PrintDebug(L"Annict でのエピソードデータが見つかりませんでした。スキップします。(WorkID={}, Count={})", annictWorkId, episodeCount.value_or(0));
             return {
                 false,
                 L"Annictにエピソードデータが見つかりません。"
@@ -143,6 +142,51 @@ namespace AnnictRecorder
         };
     }
 
+    static CreateRecordResult CreateAtxRecord(
+        const Config& Config,
+        const std::wstring& EventName
+    )
+    {
+        const auto extraction = Title::ExtractAtxTitle(EventName);
+        if (!extraction.found)
+        {
+            return {
+                false,
+                L"タイトルの抽出に失敗しました。"
+            };
+        }
+
+        PrintDebug(L"抽出されたタイトル情報: Title={}, Count={} ~ {}", extraction.title, extraction.countStart, extraction.countEnd);
+
+        const auto title = Wide2Multi(extraction.title);
+        const auto annictWork = Annict::SearchWorkIdOrNull(title, Config.annictToken);
+        if (!annictWork.has_value())
+        {
+            return {
+                false,
+                L"Annictに作品データが見つかりません。"
+            };
+        }
+
+        const auto annictWorkId = annictWork.value();
+
+        CreateRecordResult Success{};
+        CreateRecordResult Failed{true};
+        for (auto count = extraction.countStart; count <= extraction.countEnd; count++)
+        {
+            if (const auto result = CreateEpisodeRecord(annictWorkId, static_cast<float_t>(count), std::nullopt, Config); result.success)
+            {
+                Success = result;
+            }
+            else
+            {
+                Failed = result;
+            }
+        }
+
+        return Failed.success ? Success : Failed;
+    }
+
     static CreateRecordResult CreateRecord(
         const Config& Config,
         const TVTest::ServiceInfo& Service,
@@ -179,6 +223,14 @@ namespace AnnictRecorder
         const auto syoboCalProgram = SyoboCal::LookupProgram(Program.StartTime, Program.Duration, syoboCalChId);
         if (!syoboCalProgram.has_value())
         {
+            // しょぼいカレンダーに放送時間が未登録の場合は正規表現で検出を試みる
+
+            // AT-X
+            if (Service.ServiceID == 333)
+            {
+                return CreateAtxRecord(Config, Program.pszEventName);
+            }
+
             PrintDebug(L"しょぼいカレンダーに放送時刻が登録されていません。スキップします。(ChID={})", syoboCalChId);
             return {
                 false, L"しょぼいカレンダーに放送時刻データがありません。"
@@ -208,7 +260,7 @@ namespace AnnictRecorder
         // エピソードで別れている場合, 該当のエピソードを記録
         if (!annictWork.value()["no_episodes"].get<bool>())
         {
-            return CreateEpisodeRecord(annictWorkId, syoboCalProgram.value(), Config);
+            return CreateEpisodeRecord(annictWorkId, std::optional(syoboCalProgram.value().count), syoboCalProgram.value().subTitle, Config);
         }
 
         // エピソードで別れていない場合 (映画など), 作品自体を「見た」に設定

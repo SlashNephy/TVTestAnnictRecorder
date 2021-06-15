@@ -40,3 +40,25 @@ inline bool IsAnimeGenre(const TVTest::EpgEventInfo& EpgEvent)
 
     return result;
 }
+
+inline std::string Wide2Multi(const std::wstring source)
+{
+    // ロケールの設定
+    setlocale(LC_ALL, ".utf8");
+
+    char buf[256];
+    wcstombs_s(nullptr, buf, source.c_str(), 255);
+
+    return buf;
+}
+
+inline std::wstring Multi2Wide(const std::string source)
+{
+    // ロケールの設定
+    setlocale(LC_ALL, ".utf8");
+
+    wchar_t buf[256];
+    mbstowcs_s(nullptr, buf, source.c_str(), 255);
+
+    return buf;
+}

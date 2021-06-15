@@ -53,6 +53,35 @@ namespace Annict
         return std::optional(json["works"][0]);
     }
 
+    static std::optional<uint32_t> SearchWorkIdOrNull(const std::string& title, const std::string& annictToken)
+    {
+        const auto response = cpr::Get(
+            cpr::Url{"https://api.annict.com/v1/works"},
+            cpr::Parameters{
+                {"filter_title", title},
+                {"fields", "id,title"},
+                {"per_page", "50"},
+                {"access_token", annictToken}
+            }
+        );
+
+        const auto json = nlohmann::json::parse(response.text);
+        if (json["total_count"].get<int>() == 0)
+        {
+            return std::nullopt;
+        }
+
+        for (auto& work : json["works"])
+        {
+            if (title == work["title"].get<std::string>())
+            {
+                return std::optional(work["id"].get<uint32_t>());
+            }
+        }
+
+        return std::nullopt;
+    }
+
     static nlohmann::json GetEpisodes(const uint32_t workId, const std::string& annictToken)
     {
         // Paging not supported
