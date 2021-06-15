@@ -55,6 +55,11 @@ namespace AnnictRecorder
                 {
                     return true;
                 }
+
+                if (const auto numberText = std::format("#{:.0f}", episodeCount.value()); episode["number_text"].is_string() && numberText == episode["number_text"].get<std::string>())
+                {
+                    return true;
+                }
             }
             
             // サブタイトルが一致
