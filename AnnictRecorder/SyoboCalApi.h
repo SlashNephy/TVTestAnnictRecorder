@@ -60,12 +60,13 @@ namespace SyoboCal
         float_t countEnd = 0;
 
         // 複数話同時放送の場合 SubTitle フィールドに #[\d\.]+～#[\d\.]+ という形式で格納されている
-        const auto subTitle = node.child_value("SubTitle");
-        const auto subTitleRegex = std::regex(R"(^#([\d\.]+)～#([\d\.]+)$)");
-        if (std::cmatch match; std::regex_match(subTitle, match, subTitleRegex))
+        // マルチバイトな正規表現に難があるので wchar を経由する
+        const auto subTitle = Multi2Wide(node.child_value("SubTitle"));
+        const auto subTitleRegex = std::wregex(LR"(^#([\d\.]+)～#([\d\.]+)$)");
+        if (std::wcmatch match; std::regex_match(subTitle.c_str(), match, subTitleRegex))
         {
-            countStart = strtof(match[1].str().c_str(), nullptr);
-            countEnd = strtof(match[2].str().c_str(), nullptr);
+            countStart = static_cast<float_t>(_wtof(match[1].str().c_str()));
+            countEnd = static_cast<float_t>(_wtof(match[2].str().c_str()));
         }
         // 通常 (単話放送) 時
         else
