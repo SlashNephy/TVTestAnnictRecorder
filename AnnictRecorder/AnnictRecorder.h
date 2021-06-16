@@ -265,7 +265,21 @@ namespace AnnictRecorder
         // エピソードで別れている場合, 該当のエピソードを記録
         if (!annictWork.value()["no_episodes"].get<bool>())
         {
-            return CreateEpisodeRecord(annictWorkId, std::optional(syoboCalProgram.value().count), syoboCalProgram.value().subTitle, Config);
+            CreateRecordResult Success{};
+            CreateRecordResult Failed{true};
+            for (auto count = syoboCalProgram.value().countStart; count <= syoboCalProgram.value().countEnd; count++)
+            {
+                if (const auto result = CreateEpisodeRecord(annictWorkId, count, syoboCalProgram.value().subTitle, Config); result.success)
+                {
+                    Success = result;
+                }
+                else
+                {
+                    Failed = result;
+                }
+            }
+
+            return Failed.success ? Success : Failed;
         }
 
         // エピソードで別れていない場合 (映画など), 作品自体を「見た」に設定

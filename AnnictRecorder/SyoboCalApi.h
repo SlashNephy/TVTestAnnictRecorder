@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "pch.h"
 
@@ -11,7 +11,8 @@ namespace SyoboCal
     struct LookupProgramResult
     {
         uint32_t titleId;
-        float_t count;
+        float_t countStart;
+        float_t countEnd;
         std::optional<std::string> subTitle;
     };
 
@@ -51,18 +52,39 @@ namespace SyoboCal
 
         const auto node = items.first().node();
         const auto titleId = strtol(node.child_value("TID"), nullptr, 10);
-        const auto count = strtod(node.child_value("Count"), nullptr);
-        const auto rawSubTitle = node.child("STSubTitle");
-        const auto subTitle = rawSubTitle.empty() ? std::nullopt : std::optional(std::string(rawSubTitle.child_value()));
+        
+        const auto rawSTSubTitle = node.child("STSubTitle");
+        const auto stSubTitle = rawSTSubTitle.empty() ? std::nullopt : std::optional(std::string(rawSTSubTitle.child_value()));
 
-        PrintDebug(L"TID = {}, Count = {}, SubTitle = {}", titleId, count, subTitle.has_value());
-        PrintDebugW(L"SubTitle", subTitle.value_or("n/a"));
+        float_t countStart = 0;
+        float_t countEnd = 0;
+
+        // 複数話同時放送の場合 SubTitle フィールドに #[\d\.]+～#[\d\.]+ という形式で格納されている
+        const auto subTitle = node.child_value("SubTitle");
+        const auto subTitleRegex = std::regex(R"(^#([\d\.]+)～#([\d\.]+)$)");
+        if (std::cmatch match; std::regex_match(subTitle, match, subTitleRegex))
+        {
+            countStart = strtof(match[1].str().c_str(), nullptr);
+            countEnd = strtof(match[2].str().c_str(), nullptr);
+        }
+        // 通常 (単話放送) 時
+        else
+        {
+            const auto count = strtof(node.child_value("Count"), nullptr);
+
+            countStart = count;
+            countEnd = count;
+        }
+
+        PrintDebug(L"TID = {}, Count = {} ~ {}, SubTitle = {}", titleId, countStart, countEnd, stSubTitle.has_value());
+        PrintDebugW(L"SubTitle", stSubTitle.value_or("n/a"));
 
         return std::optional(
             LookupProgramResult{
                 static_cast<uint16_t>(titleId),
-                static_cast<float_t>(std::round(count * 10) / 10),
-                subTitle
+                countStart,
+                countEnd,
+                stSubTitle
             }
         );
     }
