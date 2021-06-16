@@ -7,22 +7,19 @@
 
 [![statusbar.png](https://raw.githubusercontent.com/SlashNephy/TVTestAnnictRecorder/master/docs/statusbar.png)](https://github.com/SlashNephy/TVTestAnnictRecorder)
 
-## Flow
-
-- TVTest から現在の番組を取得
-- saya の [チャンネル定義](https://github.com/SlashNephy/saya/blob/dev/docs/definitions.yml) からしょぼいカレンダーの ChID を取得
-- 番組の放送時間からしょぼいカレンダーに問い合わせて, しょぼいカレンダー TID と話数を取得
-- [kawaiioverflow/arm](https://github.com/kawaiioverflow/arm) で TID から Annict 作品 ID を取得
-- Annict 作品 ID と話数から Annict に問い合わせて, Annict エピソード ID を取得
-- Annict エピソード ID に視聴記録をつける
-
 ## Limitations
 
-- しょぼいカレンダーに登録されている放送局で視聴する必要があり, かつ放送時間データもしょぼいカレンダーに登録されている必要があります。
-  - 余程のマイナーな放送局でない限り, 有志の方々がデータを登録されています。
-- 2021/6/5 現在, Annict は しょぼいカレンダーの作品から逆引きする API を提供していません。
-  - [kawaiioverflow/arm](https://github.com/kawaiioverflow/arm) で ID の相互変換ができる作品に限られます。
-  - エントリーは4千件以上あり, また頻繁に更新されており, 最近のアニメなら間違いなく追加されています。ありがとうございます。
+TVTestAnnictRecorder が記録を行うためには以下の条件を満たす必要があります。
+
+- しょぼいカレンダーに放送局が登録されている
+  - 一覧はしょぼいカレンダーの [登録チャンネル](https://cal.syoboi.jp/mng?Action=ShowChList) から確認できます。
+  - 一覧にない場合 (放送局が在京キー局の系列局の場合) も問題ありません。
+- しょぼいカレンダーに放送時間が登録されている
+  - 有志の方々がデータを登録されています。ありがとうございます。
+  - AT-X の場合, リピート放送はしょぼいカレンダーに放送時間が登録されていません。その場合は番組名から作品名と話数を抽出します。Annict に完全一致する作品名が見つかった場合にのみ記録が行われます。
+- しょぼいカレンダーと Annict で相互変換できる
+  - [kawaiioverflow/arm](https://github.com/kawaiioverflow/arm) を利用しています。
+  - 頻繁に更新されており, 最近のアニメなら間違いなく追加されています。ありがとうございます。
 
 ## Configuration
 
