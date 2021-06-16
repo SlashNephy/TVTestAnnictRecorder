@@ -30,7 +30,7 @@ namespace AnnictRecorder
         return std::optional(Multi2Wide(value));
     }
 
-    static CreateRecordResult CreateEpisodeRecord(
+    static std::vector<CreateRecordResult> CreateEpisodeRecord(
         const uint32_t annictWorkId,
         const std::optional<float_t> episodeCount,
         const std::optional<std::string> episodeTitle,
@@ -69,9 +69,11 @@ namespace AnnictRecorder
         if (episodeIterator == episodes.end())
         {
             PrintDebug(L"Annict でのエピソードデータが見つかりませんでした。スキップします。(WorkID={}, Count={})", annictWorkId, episodeCount.value_or(0));
-            return {
-                false,
-                L"Annictにエピソードデータが見つかりません。"
+            return std::vector{
+                CreateRecordResult{
+                    false,
+                    L"Annictにエピソードデータが見つかりません。"
+                }
             };
         }
 
@@ -118,17 +120,19 @@ namespace AnnictRecorder
             );
         }
 
-        return {
-            true,
-            message,
-            workName,
-            episodeName,
-            episodeNumber,
-            episodeNumberText
+        return std::vector{
+            CreateRecordResult{
+                true,
+                message,
+                workName,
+                episodeName,
+                episodeNumber,
+                episodeNumberText
+            }
         };
     }
 
-    static CreateRecordResult CreateWorkRecord(
+    static std::vector<CreateRecordResult> CreateWorkRecord(
         const uint32_t annictWorkId,
         const nlohmann::json& annictWork,
         const Config& Config
@@ -140,14 +144,16 @@ namespace AnnictRecorder
 
         const auto workName = GetWStringOrNull(annictWork, "title");
 
-        return {
-            true,
-            std::format(L"「{}」を記録しました。", workName.value_or(L"タイトル不明")),
-            workName, std::nullopt, std::nullopt, std::nullopt
+        return std::vector{
+            CreateRecordResult{
+                true,
+                std::format(L"「{}」を記録しました。", workName.value_or(L"タイトル不明")),
+                workName, std::nullopt, std::nullopt, std::nullopt
+            }
         };
     }
 
-    static CreateRecordResult CreateAtxRecord(
+    static std::vector<CreateRecordResult> CreateAtxRecord(
         const Config& Config,
         const std::wstring& EventName
     )
@@ -155,9 +161,11 @@ namespace AnnictRecorder
         const auto extraction = Title::ExtractAtxTitle(EventName);
         if (!extraction.found)
         {
-            return {
-                false,
-                L"タイトルの抽出に失敗しました。"
+            return std::vector{
+                CreateRecordResult{
+                    false,
+                    L"タイトルの抽出に失敗しました。"
+                }
             };
         }
 
@@ -167,32 +175,29 @@ namespace AnnictRecorder
         const auto annictWork = Annict::SearchWorkIdOrNull(title, Config.annictToken);
         if (!annictWork.has_value())
         {
-            return {
-                false,
-                L"Annictに作品データが見つかりません。"
+            return std::vector{
+                CreateRecordResult{
+                    false,
+                    L"Annictに作品データが見つかりません。"
+                }
             };
         }
 
         const auto annictWorkId = annictWork.value();
 
-        CreateRecordResult Success{};
-        CreateRecordResult Failed{true};
-        for (auto count = extraction.countStart; count <= extraction.countEnd; count++)
+        auto results = std::vector<CreateRecordResult>();
+        for (auto count = extraction.countStart; count <= extraction.countEnd; count += 1)
         {
-            if (const auto result = CreateEpisodeRecord(annictWorkId, static_cast<float_t>(count), std::nullopt, Config); result.success)
+            for (const auto& r : CreateEpisodeRecord(annictWorkId, count, std::nullopt, Config))
             {
-                Success = result;
-            }
-            else
-            {
-                Failed = result;
+                results.push_back(r);
             }
         }
 
-        return Failed.success ? Success : Failed;
+        return results;
     }
 
-    static CreateRecordResult CreateRecord(
+    static std::vector<CreateRecordResult> CreateRecord(
         const Config& Config,
         const TVTest::ServiceInfo& Service,
         const TVTest::ProgramInfo& Program,
@@ -207,9 +212,11 @@ namespace AnnictRecorder
         {
             PrintDebug(L"sayaのチャンネル定義に存在しないチャンネルです。スキップします。(サービス名: {}, サービス ID: {})", Service.szServiceName, Service.ServiceID);
 
-            return {
-                false,
-                L"sayaのチャンネル定義に存在しないチャンネルです。"
+            return std::vector{
+                CreateRecordResult{
+                    false,
+                    L"sayaのチャンネル定義に存在しないチャンネルです。"
+                }
             };
         }
 
@@ -218,8 +225,11 @@ namespace AnnictRecorder
         if (!rawSyoboCalId.IsDefined())
         {
             PrintDebug(L"しょぼいカレンダーに登録されていないチャンネルです。スキップします。");
-            return {
-                false, L"しょぼいカレンダーに登録されていないチャンネルです。"
+            return std::vector{
+                CreateRecordResult{
+                    false,
+                    L"しょぼいカレンダーに登録されていないチャンネルです。"
+                }
             };
         }
 
@@ -237,8 +247,11 @@ namespace AnnictRecorder
             }
 
             PrintDebug(L"しょぼいカレンダーに放送時刻が登録されていません。スキップします。(ChID={})", syoboCalChId);
-            return {
-                false, L"しょぼいカレンダーに放送時刻データがありません。"
+            return std::vector{
+                CreateRecordResult{
+                    false,
+                    L"しょぼいカレンダーに放送時刻データがありません。"
+                }
             };
         }
 
@@ -247,8 +260,11 @@ namespace AnnictRecorder
         if (!AnnictIds.contains(syoboCalTID))
         {
             PrintDebug(L"Annict での作品データが見つかりませんでした。スキップします。(TID={})", syoboCalTID);
-            return {
-                false, L"Annictに作品データが見つかりません。"
+            return std::vector{
+                CreateRecordResult{
+                    false,
+                    L"Annictに作品データが見つかりません。"
+                }
             };
         }
 
@@ -257,29 +273,27 @@ namespace AnnictRecorder
         if (!annictWork.has_value())
         {
             PrintDebug(L"Annict での作品データが見つかりませんでした。スキップします。(TID={}, WorkID={})", syoboCalTID, annictWorkId);
-            return {
-                false, L"Annictに作品データが見つかりません。"
+            return std::vector{
+                CreateRecordResult{
+                    false,
+                    L"Annictに作品データが見つかりません。"
+                }
             };
         }
 
         // エピソードで別れている場合, 該当のエピソードを記録
         if (!annictWork.value()["no_episodes"].get<bool>())
         {
-            CreateRecordResult Success{};
-            CreateRecordResult Failed{true};
-            for (auto count = syoboCalProgram.value().countStart; count <= syoboCalProgram.value().countEnd; count++)
+            auto results = std::vector<CreateRecordResult>();
+            for (auto count = syoboCalProgram.value().countStart; count <= syoboCalProgram.value().countEnd; count += 1)
             {
-                if (const auto result = CreateEpisodeRecord(annictWorkId, count, syoboCalProgram.value().subTitle, Config); result.success)
+                for (const auto& r : CreateEpisodeRecord(annictWorkId, count, syoboCalProgram.value().subTitle, Config))
                 {
-                    Success = result;
-                }
-                else
-                {
-                    Failed = result;
+                    results.push_back(r);
                 }
             }
 
-            return Failed.success ? Success : Failed;
+            return results;
         }
 
         // エピソードで別れていない場合 (映画など), 作品自体を「見た」に設定

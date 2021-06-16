@@ -409,31 +409,43 @@ void CAnnictRecorderPlugin::CheckCurrentProgram()
         {
             PrintDebug(L"チューニング空間の取得に失敗しました。(サービス ID: {}, サービス名: {})", Service.value().ServiceID, Service.value().szServiceName);
         }
-        
-        const auto result = AnnictRecorder::CreateRecord(m_config, Service.value(), Program, ChannelType, m_annictIds, m_definitions);
-        if (result.success)
+
+        AnnictRecorder::CreateRecordResult Success{};
+        AnnictRecorder::CreateRecordResult Failed{true};
+
+        const auto results = CreateRecord(m_config, Service.value(), Program, ChannelType, m_annictIds, m_definitions);
+        for (const auto& result : results)
         {
-            m_pApp->AddLog(L"Annict に視聴記録を送信しました。");
-            m_pApp->AddLog(
-                std::format(
-                    L"Annict 作品名: {}, エピソード名: {} ({})",
-                    result.workName.value_or(L"タイトル不明"),
-                    result.episodeName.value_or(L"サブタイトル不明"),
-                    result.episodeNumberText.value_or(L"話数不明")
-                ).c_str()
-            );
+            if (result.success)
+            {
+                m_pApp->AddLog(L"Annict に視聴記録を送信しました。");
+                m_pApp->AddLog(
+                    std::format(
+                        L"Annict 作品名: {}, エピソード名: {} ({})",
+                        result.workName.value_or(L"タイトル不明"),
+                        result.episodeName.value_or(L"サブタイトル不明"),
+                        result.episodeNumberText.value_or(L"話数不明")
+                    ).c_str()
+                );
+                Success = result;
+            }
+            else
+            {
+                Failed = result;
+            }
         }
-        else
+
+        if (!Failed.success)
         {
             m_pApp->AddLog(L"Annict に視聴記録を送信できませんでした。Annict 上に見つからない作品か, しょぼいカレンダーに放送時間が登録されていません。", TVTest::LOG_TYPE_WARNING);
-            m_pApp->AddLog(result.message.c_str());
+            m_pApp->AddLog(Failed.message.c_str());
             m_pApp->AddLog(
                 std::format(L"番組名: {}, サービス名: {}", Program.pszEventName, Service.value().szServiceName).c_str()
             );
         }
 
+        m_lastRecordResult = Failed.success ? Success : Failed;
         m_recorded[programId] = true;
-        m_lastRecordResult = result;
     }
 
     PrintDebug(L"クリティカルセクションから出ました。");
