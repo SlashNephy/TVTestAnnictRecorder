@@ -14,7 +14,7 @@ namespace Title
 
     static AtxTitleResult ExtractAtxTitle(const std::wstring& eventName)
     {
-        const auto multipleEpisodeRegex = std::wregex(LR"(^(.+)\s#(\d+)[-・]#(\d+).*$)");
+        const auto multipleEpisodeRegex = std::wregex(LR"(^(.+)\s#([\d\.]+)[-・]#([\d\.]+).*$)");
         if (std::wsmatch match; std::regex_match(eventName, match, multipleEpisodeRegex))
         {
             return {
@@ -25,7 +25,7 @@ namespace Title
             };
         }
 
-        const auto singleEpisodeRegex = std::wregex(LR"(^(.+)\s#(\d+).*$)");
+        const auto singleEpisodeRegex = std::wregex(LR"(^(.+)\s#([\d\.]+).*$)");
         if (std::wsmatch match; std::regex_match(eventName, match, singleEpisodeRegex))
         {
             const auto start = _wtoi(match[2].str().c_str());
