@@ -32,6 +32,7 @@ namespace AnnictRecorder
 
     static std::vector<CreateRecordResult> CreateEpisodeRecord(
         const uint32_t annictWorkId,
+        const bool isLastEpisode,
         const std::optional<float_t> episodeCount,
         const std::optional<std::string> episodeTitle,
         const Config& Config
@@ -120,7 +121,7 @@ namespace AnnictRecorder
             );
         }
 
-        return std::vector{
+        auto results = std::vector{
             CreateRecordResult{
                 true,
                 message,
@@ -130,6 +131,27 @@ namespace AnnictRecorder
                 episodeNumberText
             }
         };
+
+        if (isLastEpisode)
+        {
+            if (!Config.dryRun)
+            {
+                Annict::PostMyStatus(annictWorkId, Config.annictToken, "watched");
+            }
+
+            results.push_back(
+                CreateRecordResult{
+                    true,
+                    std::format(L"「{}」を「見た」に変更しました。", workName.value_or(L"？？？")),
+                    workName,
+                    episodeName,
+                    episodeNumber,
+                    episodeNumberText
+                }
+            );
+        }
+
+        return results;
     }
 
     static std::vector<CreateRecordResult> CreateWorkRecord(
@@ -139,7 +161,7 @@ namespace AnnictRecorder
     )
     {
         if (!Config.dryRun) {
-            Annict::PostMyStatus(annictWorkId, Config.annictToken);
+            Annict::PostMyStatus(annictWorkId, Config.annictToken, "watched");
         }
 
         const auto workName = GetWStringOrNull(annictWork, "title");
@@ -155,7 +177,8 @@ namespace AnnictRecorder
 
     static std::vector<CreateRecordResult> CreateAtxRecord(
         const Config& Config,
-        const std::wstring& EventName
+        const std::wstring& EventName,
+        const bool IsLastEpisode
     )
     {
         const auto extraction = Title::ExtractAtxTitle(EventName);
@@ -186,9 +209,9 @@ namespace AnnictRecorder
         const auto annictWorkId = annictWork.value();
 
         auto results = std::vector<CreateRecordResult>();
-        for (auto count = extraction.countStart; count <= extraction.countEnd; count += 1)
+        for (auto count = extraction.countStart; count <= extraction.countEnd; count++)
         {
-            for (const auto& r : CreateEpisodeRecord(annictWorkId, count, std::nullopt, Config))
+            for (const auto& r : CreateEpisodeRecord(annictWorkId, IsLastEpisode, count, std::nullopt, Config))
             {
                 results.push_back(r);
             }
@@ -206,6 +229,8 @@ namespace AnnictRecorder
         const YAML::Node& SayaDefinitions
     )
     {
+        auto isLastEpisode = std::wstring(Program.pszEventName).find(L"[終]") != std::string::npos;
+
         // ChannelDefinition
         const auto ChannelDefinition = FindSayaChannel(SayaDefinitions, ChannelType, Service.ServiceID);
         if (!ChannelDefinition.has_value())
@@ -243,7 +268,7 @@ namespace AnnictRecorder
             // AT-X
             if (Service.ServiceID == 333)
             {
-                return CreateAtxRecord(Config, Program.pszEventName);
+                return CreateAtxRecord(Config, Program.pszEventName, isLastEpisode);
             }
 
             PrintDebug(L"しょぼいカレンダーに放送時刻が登録されていません。スキップします。(ChID={})", syoboCalChId);
@@ -254,6 +279,8 @@ namespace AnnictRecorder
                 }
             };
         }
+
+        isLastEpisode |= syoboCalProgram.value().isLastEpisode;
 
         // kawaiioverflow/arm から しょぼいカレンダー TID → Annict Work ID を見つける
         const auto syoboCalTID = syoboCalProgram.value().titleId;
@@ -285,9 +312,9 @@ namespace AnnictRecorder
         if (!annictWork.value()["no_episodes"].get<bool>())
         {
             auto results = std::vector<CreateRecordResult>();
-            for (auto count = syoboCalProgram.value().countStart; count <= syoboCalProgram.value().countEnd; count += 1)
+            for (auto count = syoboCalProgram.value().countStart; count <= syoboCalProgram.value().countEnd; count++)
             {
-                for (const auto& r : CreateEpisodeRecord(annictWorkId, count, syoboCalProgram.value().subTitle, Config))
+                for (const auto& r : CreateEpisodeRecord(annictWorkId, isLastEpisode, count, syoboCalProgram.value().subTitle, Config))
                 {
                     results.push_back(r);
                 }

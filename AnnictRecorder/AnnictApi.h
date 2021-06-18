@@ -20,13 +20,13 @@ namespace Annict
         );
     }
 
-    static void PostMyStatus(const uint32_t workId, const std::string& annictToken)
+    static void PostMyStatus(const uint32_t workId, const std::string& annictToken, const std::string& kind)
     {
         cpr::Post(
             cpr::Url{"https://api.annict.com/v1/me/statuses"},
             cpr::Parameters{
                 {"work_id", std::to_string(workId)},
-                {"kind", "watched"},
+                {"kind", kind},
                 {"access_token", annictToken}
             },
             cpr::UserAgent{AnnictRecorderUserAgent}

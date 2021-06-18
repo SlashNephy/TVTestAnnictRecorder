@@ -13,6 +13,7 @@ namespace SyoboCal
         uint32_t titleId;
         float_t countStart;
         float_t countEnd;
+        bool isLastEpisode;
         std::optional<std::string> subTitle;
     };
 
@@ -55,6 +56,8 @@ namespace SyoboCal
         
         const auto rawSTSubTitle = node.child("STSubTitle");
         const auto stSubTitle = rawSTSubTitle.empty() ? std::nullopt : std::optional(std::string(rawSTSubTitle.child_value()));
+        // https://docs.cal.syoboi.jp/spec/proginfo-flag/
+        const auto isLastEpisode = (strtol(node.child_value("Flag"), nullptr, 10) & 4) > 0;
 
         float_t countStart = 0;
         float_t countEnd = 0;
@@ -85,6 +88,7 @@ namespace SyoboCal
                 static_cast<uint16_t>(titleId),
                 countStart,
                 countEnd,
+                isLastEpisode,
                 stSubTitle
             }
         );
