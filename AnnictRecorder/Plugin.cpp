@@ -181,13 +181,15 @@ void CAnnictRecorderPlugin::LoadConfig()
     wchar_t annictTokenW[AnnictRecorder::MaxAnnictTokenLength];
     ::GetPrivateProfileString(L"Annict", L"Token", L"", annictTokenW, AnnictRecorder::MaxAnnictTokenLength, m_iniFileName);
     wcstombs_s(nullptr, m_config.AnnictToken, annictTokenW, AnnictRecorder::MaxAnnictTokenLength - 1);
-    m_config.RecordThresholdPercent = ::GetPrivateProfileInt(L"Record", L"ThresholdPercent", m_config.RecordThresholdPercent, m_iniFileName);
-    m_config.ShareOnTwitter = ::GetPrivateProfileInt(L"Record", L"ShareOnTwitter", m_config.ShareOnTwitter, m_iniFileName) > 0;
-    m_config.ShareOnFacebook = ::GetPrivateProfileInt(L"Record", L"ShareOnFacebook", m_config.ShareOnFacebook, m_iniFileName) > 0;
-    m_config.SetWatchingStatusInFirstEpisode = ::GetPrivateProfileInt(L"Record", L"SetWatchingStatusInFirstEpisode", m_config.SetWatchingStatusInFirstEpisode, m_iniFileName) > 0;
-    m_config.SetWatchingStatusInAnyEpisodes = ::GetPrivateProfileInt(L"Record", L"SetWatchingStatusInAnyEpisodes", m_config.SetWatchingStatusInAnyEpisodes, m_iniFileName) > 0;
-    m_config.SetWatchedInLastEpisode = ::GetPrivateProfileInt(L"Record", L"SetWatchedInLastEpisode", m_config.SetWatchedInLastEpisode, m_iniFileName) > 0;
-    m_config.DryRun = ::GetPrivateProfileInt(L"Record", L"DryRun", m_config.DryRun, m_iniFileName) > 0;
+
+    const auto record = GetPrivateProfileSectionBuffer(L"Record", m_iniFileName);
+    m_config.RecordThresholdPercent = GetBufferedProfileInt(record.data(), L"ThresholdPercent", m_config.RecordThresholdPercent);
+    m_config.ShareOnTwitter = GetBufferedProfileInt(record.data(), L"ShareOnTwitter", m_config.ShareOnTwitter) > 0;
+    m_config.ShareOnFacebook = GetBufferedProfileInt(record.data(), L"ShareOnFacebook", m_config.ShareOnFacebook) > 0;
+    m_config.SetWatchingStatusInFirstEpisode = GetBufferedProfileInt(record.data(), L"SetWatchingStatusInFirstEpisode", m_config.SetWatchingStatusInFirstEpisode) > 0;
+    m_config.SetWatchingStatusInAnyEpisodes = GetBufferedProfileInt(record.data(), L"SetWatchingStatusInAnyEpisodes", m_config.SetWatchingStatusInAnyEpisodes) > 0;
+    m_config.SetWatchedInLastEpisode = GetBufferedProfileInt(record.data(), L"SetWatchedInLastEpisode", m_config.SetWatchedInLastEpisode) > 0;
+    m_config.DryRun = GetBufferedProfileInt(record.data(), L"DryRun", m_config.DryRun) > 0;
 
     m_definitionsFuture = std::async(std::launch::async, [this]
     {
