@@ -11,7 +11,7 @@
 constexpr auto AnnictRecorderWindowClass = L"AnnictRecorder Window";
 constexpr auto AnnictRecorderStatusItemId = WM_APP + 1;
 constexpr auto AnnictRecorderTimerId = WM_APP + 2;
-constexpr auto AnnictRecorderTimerIntervalMs = 5 * 1000;
+constexpr auto AnnictRecorderTimerIntervalMs = 10 * 1000;
 constexpr auto MaxEventNameLength = 64;
 
 class CAnnictRecorderPlugin final : public TVTest::CTVTestPlugin
@@ -508,7 +508,7 @@ LRESULT CALLBACK CAnnictRecorderPlugin::EventCallback(const UINT Event, const LP
             else
             {
                 // プレビュー(設定ダイアログ)の項目の描画
-                status = L"スーパーカブ #9「氷の中」を記録しました。";
+                status = L"第8話「あたしって、ほんとバカ」を記録しました。";
             }
 
             pThis->m_pApp->ThemeDrawText(
