@@ -2,11 +2,11 @@
 
 #include "pch.h"
 
-#include "SyoboCalApi.h"
+#include "Common.h"
 
 namespace Annict
 {
-    static void PostRecord(const uint32_t episodeId, const std::string& annictToken, const bool shareOnTwitter, const bool shareOnFacebook)
+    static void PostRecord(const uint32_t episodeId, const bool shareOnTwitter, const bool shareOnFacebook, const std::string& annictToken)
     {
         cpr::Post(
             cpr::Url{"https://api.annict.com/v1/me/records"},
@@ -20,7 +20,7 @@ namespace Annict
         );
     }
 
-    static void PostMyStatus(const uint32_t workId, const std::string& annictToken, const std::string& kind)
+    static void PostMyStatus(const uint32_t workId, const std::string& kind, const std::string& annictToken)
     {
         cpr::Post(
             cpr::Url{"https://api.annict.com/v1/me/statuses"},
@@ -33,7 +33,7 @@ namespace Annict
         );
     }
 
-    static std::optional<nlohmann::json> GetWorkOrNull(const uint32_t workId, const std::string& annictToken)
+    static std::optional<nlohmann::json> GetWorkById(const uint32_t workId, const std::string& annictToken)
     {
         const auto response = cpr::Get(
             cpr::Url{"https://api.annict.com/v1/works"},
@@ -53,13 +53,13 @@ namespace Annict
         return std::optional(json["works"][0]);
     }
 
-    static std::optional<uint32_t> SearchWorkIdOrNull(const std::string& title, const std::string& annictToken)
+    static std::optional<nlohmann::json> GetWorkByTitle(const std::string& title, const std::string& annictToken)
     {
         const auto response = cpr::Get(
             cpr::Url{"https://api.annict.com/v1/works"},
             cpr::Parameters{
                 {"filter_title", title},
-                {"fields", "id,title"},
+                {"fields", "id,title,no_episodes"},
                 {"per_page", "50"},
                 {"access_token", annictToken}
             }
@@ -75,7 +75,7 @@ namespace Annict
         {
             if (title == work["title"].get<std::string>())
             {
-                return std::optional(work["id"].get<uint32_t>());
+                return std::optional(work);
             }
         }
 

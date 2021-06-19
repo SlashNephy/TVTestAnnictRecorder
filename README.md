@@ -49,6 +49,22 @@ TVTestAnnictRecorder が記録を行うためには以下の条件を満たす�
 ; Annict に登録されている Facebook アカウントが使用されます。
 ; デフォルト値: 0
 ; ShareOnFacebook=1
+
+; 第1話を視聴した際に作品のステータスを「見てる」に変更するかどうか。
+; デフォルト値: 0
+; SetWatchingStatusInFirstEpisode=1
+
+; 第1話に限らず視聴した作品のステータスを「見てる」に変更するかどうか。(最終話を除く)
+; デフォルト値: 0
+; SetWatchingStatusInAnyEpisodes=1
+
+; 最終話を視聴した際に作品のステータスを「見た」に変更するかどうか。
+; デフォルト値: 0
+; SetWatchedInLastEpisode=1
+
+; 1 に変更すると実際に記録は行いません。デバッグ用です。
+; デフォルト値: 0
+; DryRun=1
 ```
 
 ## Build

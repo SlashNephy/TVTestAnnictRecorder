@@ -10,7 +10,7 @@
 
 constexpr auto AnnictRecorderWindowClass = L"AnnictRecorder Window";
 constexpr auto AnnictRecorderStatusItemId = WM_APP + 1;
-constexpr auto AnnictRecorderTimerId = WM_APP + 1;
+constexpr auto AnnictRecorderTimerId = WM_APP + 2;
 constexpr auto AnnictRecorderTimerIntervalMs = 5 * 1000;
 constexpr auto MaxEventNameLength = 64;
 
@@ -159,7 +159,6 @@ TVTest::CTVTestPlugin* CreatePluginClass()
  */
 void CAnnictRecorderPlugin::Enable()
 {
-
     // 設定の読み込み
     LoadConfig();
 }
@@ -179,13 +178,16 @@ void CAnnictRecorderPlugin::LoadConfig()
     ::GetModuleFileName(g_hinstDLL, m_iniFileName, MAX_PATH);
     ::PathRenameExtension(m_iniFileName, L".ini");
 
-    wchar_t annictTokenW[MaxAnnictTokenLength];
-    ::GetPrivateProfileString(L"Annict", L"Token", L"", annictTokenW, MaxAnnictTokenLength, m_iniFileName);
-    wcstombs_s(nullptr, m_config.annictToken, annictTokenW, MaxAnnictTokenLength - 1);
-    m_config.recordThresholdPercent = ::GetPrivateProfileInt(L"Record", L"ThresholdPercent", m_config.recordThresholdPercent, m_iniFileName);
-    m_config.shareOnTwitter = ::GetPrivateProfileInt(L"Record", L"ShareOnTwitter", m_config.shareOnTwitter, m_iniFileName) > 0;
-    m_config.shareOnFacebook = ::GetPrivateProfileInt(L"Record", L"ShareOnFacebook", m_config.shareOnFacebook, m_iniFileName) > 0;
-    m_config.dryRun = ::GetPrivateProfileInt(L"Record", L"DryRun", m_config.dryRun, m_iniFileName) > 0;
+    wchar_t annictTokenW[AnnictRecorder::MaxAnnictTokenLength];
+    ::GetPrivateProfileString(L"Annict", L"Token", L"", annictTokenW, AnnictRecorder::MaxAnnictTokenLength, m_iniFileName);
+    wcstombs_s(nullptr, m_config.AnnictToken, annictTokenW, AnnictRecorder::MaxAnnictTokenLength - 1);
+    m_config.RecordThresholdPercent = ::GetPrivateProfileInt(L"Record", L"ThresholdPercent", m_config.RecordThresholdPercent, m_iniFileName);
+    m_config.ShareOnTwitter = ::GetPrivateProfileInt(L"Record", L"ShareOnTwitter", m_config.ShareOnTwitter, m_iniFileName) > 0;
+    m_config.ShareOnFacebook = ::GetPrivateProfileInt(L"Record", L"ShareOnFacebook", m_config.ShareOnFacebook, m_iniFileName) > 0;
+    m_config.SetWatchingStatusInFirstEpisode = ::GetPrivateProfileInt(L"Record", L"SetWatchingStatusInFirstEpisode", m_config.SetWatchingStatusInFirstEpisode, m_iniFileName) > 0;
+    m_config.SetWatchingStatusInAnyEpisodes = ::GetPrivateProfileInt(L"Record", L"SetWatchingStatusInAnyEpisodes", m_config.SetWatchingStatusInAnyEpisodes, m_iniFileName) > 0;
+    m_config.SetWatchedInLastEpisode = ::GetPrivateProfileInt(L"Record", L"SetWatchedInLastEpisode", m_config.SetWatchedInLastEpisode, m_iniFileName) > 0;
+    m_config.DryRun = ::GetPrivateProfileInt(L"Record", L"DryRun", m_config.DryRun, m_iniFileName) > 0;
 
     m_definitionsFuture = std::async(std::launch::async, [this]
     {
@@ -222,7 +224,7 @@ void CAnnictRecorderPlugin::LoadConfig()
         }
     });
 
-    m_isReady = strlen(m_config.annictToken) > 0;
+    m_isReady = strlen(m_config.AnnictToken) > 0;
 }
 
 /*
@@ -313,7 +315,7 @@ void CAnnictRecorderPlugin::CheckCurrentProgram()
             const auto pos = GetTvtPlayPositionSec(tvtPlayHwnd);
             percent = duration > 0 ? 100.0 * pos / duration : 100;
             
-            shouldRecord = percent >= m_config.recordThresholdPercent;
+            shouldRecord = percent >= m_config.RecordThresholdPercent;
             PrintDebug(L"視聴位置 = {:.1f} %", percent);
         }
         else
@@ -333,13 +335,13 @@ void CAnnictRecorderPlugin::CheckCurrentProgram()
             const auto pos = time(nullptr) - watchStartTime;
             percent = duration > 0 ? 100.0 * static_cast<double>(pos) / duration : 100;
 
-            shouldRecord = percent >= m_config.recordThresholdPercent;
+            shouldRecord = percent >= m_config.RecordThresholdPercent;
             PrintDebug(L"視聴位置 = {:.1f} %", percent);
         }
 
         if (!shouldRecord)
         {
-            PrintDebug(L"記録するための閾値 ({} %) に達していません。スキップします。", m_config.recordThresholdPercent);
+            PrintDebug(L"記録するための閾値 ({} %) に達していません。スキップします。", m_config.RecordThresholdPercent);
             m_lastRecordResult = {
                 false,
                 std::format(L"AnnictRecorder 待機中... ({:.0f}%)", percent)
@@ -413,8 +415,7 @@ void CAnnictRecorderPlugin::CheckCurrentProgram()
         AnnictRecorder::CreateRecordResult Success{};
         AnnictRecorder::CreateRecordResult Failed{true};
 
-        const auto results = CreateRecord(m_config, Service.value(), Program, ChannelType, m_annictIds, m_definitions);
-        for (const auto& result : results)
+        for (const auto& result : CreateRecord(m_config, Service.value(), Program, ChannelType, m_annictIds, m_definitions))
         {
             if (result.success)
             {

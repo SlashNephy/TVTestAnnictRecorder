@@ -1,15 +1,18 @@
 #pragma once
 
-#include "Common.h"
-
 namespace AnnictRecorder
 {
+    constexpr auto MaxAnnictTokenLength = 64;
+
     struct Config
     {
-        char annictToken[MaxAnnictTokenLength]{};
-        int recordThresholdPercent = 20;
-        bool shareOnTwitter = false;
-        bool shareOnFacebook = false;
-        bool dryRun = false;
+        char AnnictToken[MaxAnnictTokenLength]{};
+        int RecordThresholdPercent = 20;
+        bool ShareOnTwitter = false;
+        bool ShareOnFacebook = false;
+        bool SetWatchingStatusInFirstEpisode = false;
+        bool SetWatchingStatusInAnyEpisodes = false;
+        bool SetWatchedInLastEpisode = false;
+        bool DryRun = false;
     };
 }
