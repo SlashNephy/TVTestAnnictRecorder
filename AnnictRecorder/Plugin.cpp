@@ -196,12 +196,17 @@ void CAnnictRecorderPlugin::LoadConfig()
         try
         {
             m_definitions = Saya::LoadSayaDefinitions();
+
             m_pApp->AddLog(
                 std::format(L"saya のチャンネル定義ファイルを読み込みました。(チャンネル数: {})", m_definitions["channels"].size()).c_str()
             );
         }
         catch (cpr::Error&)
         {
+            m_lastRecordResult = {
+                false,
+                L"sayaのチャンネル定義ファイルが利用できません。"
+            };
             m_pApp->AddLog(
                 std::format(L"saya のチャンネル定義ファイルの読み込みに失敗しました。").c_str(),
                 TVTest::LOG_TYPE_ERROR
@@ -213,12 +218,17 @@ void CAnnictRecorderPlugin::LoadConfig()
     {
         try {
             Arm::LoadArmJson(m_annictIds);
+
             m_pApp->AddLog(
                 std::format(L"kawaiioverflow/arm の定義ファイルを読み込みました。(作品数: {})", m_annictIds.size()).c_str()
             );
         }
         catch (cpr::Error&)
         {
+            m_lastRecordResult = {
+                false,
+                L"kawaiioverflow/armの定義ファイルが利用できません。"
+            };
             m_pApp->AddLog(
                 std::format(L"kawaiioverflow/arm の定義ファイルの読み込みに失敗しました。").c_str(),
                 TVTest::LOG_TYPE_ERROR
@@ -243,20 +253,12 @@ void CAnnictRecorderPlugin::CheckCurrentProgram()
 
     if (m_definitionsFuture.wait_for(std::chrono::seconds(0)) != std::future_status::ready || m_definitions.size() == 0)
     {
-        m_lastRecordResult = {
-            false,
-            L"sayaのチャンネル定義ファイルが利用できません。"
-        };
         PrintDebug(L"saya のチャンネル定義ファイルが利用できません。");
         return;
     }
 
     if (m_annictIdsFuture.wait_for(std::chrono::seconds(0)) != std::future_status::ready || m_annictIds.empty())
     {
-        m_lastRecordResult = {
-            false,
-            L"kawaiioverflow/armの定義ファイルが利用できません。"
-        };
         PrintDebug(L"kawaiioverflow/arm の定義ファイルが利用できません。");
         return;
     }
