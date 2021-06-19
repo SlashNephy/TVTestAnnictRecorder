@@ -23,7 +23,7 @@ namespace Saya
         GR, BS, CS, SKY
     };
 
-    inline std::string GetNameOfSayaChannelType(const ChannelType type)
+    static std::string GetNameOfSayaChannelType(const ChannelType type)
     {
         switch (type)
         {
@@ -40,7 +40,7 @@ namespace Saya
         throw;
     }
 
-    inline std::optional<ChannelType> GetSayaChannelTypeByName(const std::wstring& name)
+    static std::optional<ChannelType> GetSayaChannelTypeByName(const std::wstring& name)
     {
         if (name == L"GR")
         {
@@ -62,7 +62,7 @@ namespace Saya
         return std::nullopt;
     }
 
-    inline std::optional<ChannelType> GetSayaChannelTypeByIndex(const int index)
+    static std::optional<ChannelType> GetSayaChannelTypeByIndex(const int index)
     {
         switch (index)
         {
@@ -77,7 +77,7 @@ namespace Saya
         }
     }
 
-    inline std::optional<YAML::Node> FindSayaChannel(const YAML::Node& yml, const std::optional<ChannelType> targetChannelType, const WORD targetServiceId)
+    static std::optional<YAML::Node> FindSayaChannel(const YAML::Node& yml, const std::optional<ChannelType> targetChannelType, const WORD targetServiceId)
     {
         const auto channels = yml["channels"];
 

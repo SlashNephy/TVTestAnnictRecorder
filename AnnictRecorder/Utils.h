@@ -5,7 +5,7 @@
 /*
  * SYSTEMTIME 構造体を time_t に変換する
  */
-inline time_t SystemTime2Timet(const SYSTEMTIME& st)
+static time_t SystemTime2Timet(const SYSTEMTIME& st)
 {
     struct tm gm = {
         st.wSecond, st.wMinute, st.wHour, st.wDay, st.wMonth - 1, st.wYear - 1900, st.wDayOfWeek, 0, 0
@@ -17,7 +17,7 @@ inline time_t SystemTime2Timet(const SYSTEMTIME& st)
 /*
  * この番組がアニメジャンルであるかどうか判定する
  */
-inline bool IsAnimeGenre(const TVTest::EpgEventInfo& EpgEvent)
+static bool IsAnimeGenre(const TVTest::EpgEventInfo& EpgEvent)
 {
     if (EpgEvent.ContentList == nullptr)
     {
@@ -41,7 +41,7 @@ inline bool IsAnimeGenre(const TVTest::EpgEventInfo& EpgEvent)
     return result;
 }
 
-inline std::string Wide2Multi(const std::wstring source)
+static std::string Wide2Multi(const std::wstring source)
 {
     // ロケールの設定
     setlocale(LC_ALL, ".utf8");
@@ -52,7 +52,7 @@ inline std::string Wide2Multi(const std::wstring source)
     return buf;
 }
 
-inline std::wstring Multi2Wide(const std::string source)
+static std::wstring Multi2Wide(const std::string source)
 {
     // ロケールの設定
     setlocale(LC_ALL, ".utf8");

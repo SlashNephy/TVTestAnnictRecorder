@@ -18,7 +18,7 @@ namespace SyoboCal
         std::optional<std::string> subTitle;
     };
 
-    inline std::optional<LookupProgramResult> LookupProgram(const SYSTEMTIME& start, const DWORD seconds, const int chId)
+    static std::optional<LookupProgramResult> LookupProgram(const SYSTEMTIME& start, const DWORD seconds, const int chId)
     {
         const auto stTime = std::format("{:04d}{:02d}{:02d}_{:02d}{:02d}{:02d}-", start.wYear, start.wMonth, start.wDay, start.wHour, start.wMinute, start.wSecond);
         const auto endTimestamp = SystemTime2Timet(start) + seconds;
