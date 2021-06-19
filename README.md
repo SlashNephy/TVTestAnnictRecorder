@@ -3,15 +3,28 @@
 [![GitHub Workflow Status](https://img.shields.io/github/workflow/status/SlashNephy/TVTestAnnictRecorder/latest?style=flat-square)](https://github.com/SlashNephy/TVTestAnnictRecorder/actions)
 [![GitHub release (latest by date)](https://img.shields.io/github/v/release/SlashNephy/TVTestAnnictRecorder?style=flat-square)](https://github.com/SlashNephy/TVTestAnnictRecorder/releases)
 
-📝 視聴したアニメを自動で Annict に記録する TVTest プラグイン (TVTest 0.9.0 以降が必要)
+📝 視聴したアニメを自動で [Annict](https://annict.jp/) に記録する TVTest プラグイン (TVTest 0.9.0 以降が必要)
 
 [![statusbar.png](https://raw.githubusercontent.com/SlashNephy/TVTestAnnictRecorder/master/docs/statusbar.png)](https://github.com/SlashNephy/TVTestAnnictRecorder)
+
+## Features
+
+- Annict へ視聴したアニメの該当エピソードの記録を自動で行います。
+  - [TvtPlay](https://github.com/xtne6f/TvtPlay) でファイル再生時にも動作します。
+  - 指定した時間だけ視聴したときに記録を行います。(デフォルト値は放送時間の 20%)
+  - [しょぼいカレンダー](https://cal.syoboi.jp/) に登録されている番組で機能します。(ほとんど網羅されています。)
+  - しょぼいカレンダーにデータのない AT-X のリピート放送や, 一挙放送にも対応しています。
+  - 番組に複数のエピソードがある場合 (2話同時放送等) すべてのエピソードに記録を行います。
+- 次のオプションがあります。
+  - 記録と同時に Twitter や Facebook に投稿する。
+  - 第1話 (または最終話以外のエピソード) を視聴した際に Annict での作品のステータスを「見てる」に変更する。
+  - 最終話を視聴した際に Annict での作品のステータスを「見た」に変更する。
 
 ## Limitations
 
 TVTestAnnictRecorder が記録を行うためには以下の条件を満たす必要があります。
 
-- しょぼいカレンダーに放送局が登録されている
+- [しょぼいカレンダー](https://cal.syoboi.jp) に放送局が登録されている
   - 一覧はしょぼいカレンダーの [登録チャンネル](https://cal.syoboi.jp/mng?Action=ShowChList) から確認できます。
   - 一覧にない場合 (放送局が在京キー局の系列局の場合) も問題ありません。
 - しょぼいカレンダーに放送時間が登録されている
