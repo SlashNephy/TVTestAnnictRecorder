@@ -40,23 +40,29 @@ namespace AnnictRecorder
         const Config& Config
     )
     {
+        std::optional<std::string> newStatus;
         if (isLastEpisode && Config.SetWatchedInLastEpisode)
         {
-            if (!Config.DryRun)
-            {
-                Annict::PostMyStatus(annictWorkId, "watched", Config.AnnictToken);
-            }
-
-            PrintDebug(L"作品のステータスを「見た」に変更しました。(WorkID={})", annictWorkId);
+            newStatus = "watched";
         }
         else if ((isFirstEpisode && Config.SetWatchingStatusInFirstEpisode) || (!isLastEpisode && Config.SetWatchingStatusInAnyEpisodes))
         {
-            if (!Config.DryRun)
-            {
-                Annict::PostMyStatus(annictWorkId, "watching", Config.AnnictToken);
-            }
+            newStatus = "watching";
+        }
 
-            PrintDebug(L"作品のステータスを「見てる」に変更しました。(WorkID={})", annictWorkId);
+        if (newStatus.has_value())
+        {
+            const auto work = Annict::GetMyWork(annictWorkId, Config.AnnictToken);
+            const auto status = work.has_value() ? work.value()["status"]["kind"].get<std::string>() : "no_select";
+            if (status != newStatus.value())
+            {
+                if (!Config.DryRun)
+                {
+                    Annict::PostMyStatus(annictWorkId, newStatus.value(), Config.AnnictToken);
+                }
+
+                PrintDebug(L"作品のステータスを「{}」→「{}」に変更しました。(WorkID={})", Multi2Wide(status), Multi2Wide(newStatus.value()), annictWorkId);
+            }
         }
     }
 

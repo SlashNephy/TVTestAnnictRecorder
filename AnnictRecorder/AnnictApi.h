@@ -99,4 +99,24 @@ namespace Annict
         const auto json = nlohmann::json::parse(response.text);
         return json["episodes"];
     }
+
+    static std::optional<nlohmann::json> GetMyWork(const uint32_t workId, const std::string& annictToken)
+    {
+        const auto response = cpr::Get(
+            cpr::Url{"https://api.annict.com/v1/me/works"},
+            cpr::Parameters{
+                {"filter_ids", std::to_string(workId)},
+                {"fields", "status.kind"},
+                {"access_token", annictToken}
+            }
+        );
+
+        const auto json = nlohmann::json::parse(response.text);
+        if (json["total_count"].get<int>() == 0)
+        {
+            return std::nullopt;
+        }
+
+        return std::optional(json["works"][0]);
+    }
 }
