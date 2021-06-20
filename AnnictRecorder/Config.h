@@ -13,6 +13,7 @@ namespace AnnictRecorder
         bool SetWatchingStatusInFirstEpisode = false;
         bool SetWatchingStatusInAnyEpisodes = false;
         bool SetWatchedInLastEpisode = false;
+        bool SkipUpdateStatusIfAlreadyWatched = false;
         bool DryRun = false;
     };
 }

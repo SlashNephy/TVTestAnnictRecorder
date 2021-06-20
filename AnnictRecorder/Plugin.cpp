@@ -41,7 +41,6 @@ class CAnnictRecorderPlugin final : public TVTest::CTVTestPlugin
     bool m_isEnabled = false;
 
     void Enable();
-    static void Disable();
     void LoadConfig();
     void CheckCurrentProgram();
 
@@ -164,13 +163,6 @@ void CAnnictRecorderPlugin::Enable()
 }
 
 /*
- * プラグインが無効化されたときの処理を記述する
- */
-void CAnnictRecorderPlugin::Disable()
-{
-}
-
-/*
  * 設定を読み込む
  */
 void CAnnictRecorderPlugin::LoadConfig()
@@ -189,6 +181,7 @@ void CAnnictRecorderPlugin::LoadConfig()
     m_config.SetWatchingStatusInFirstEpisode = GetBufferedProfileInt(record.data(), L"SetWatchingStatusInFirstEpisode", m_config.SetWatchingStatusInFirstEpisode) > 0;
     m_config.SetWatchingStatusInAnyEpisodes = GetBufferedProfileInt(record.data(), L"SetWatchingStatusInAnyEpisodes", m_config.SetWatchingStatusInAnyEpisodes) > 0;
     m_config.SetWatchedInLastEpisode = GetBufferedProfileInt(record.data(), L"SetWatchedInLastEpisode", m_config.SetWatchedInLastEpisode) > 0;
+    m_config.SkipUpdateStatusIfAlreadyWatched = GetBufferedProfileInt(record.data(), L"SkipUpdateStatusIfAlreadyWatched", m_config.SkipUpdateStatusIfAlreadyWatched) > 0;
     m_config.DryRun = GetBufferedProfileInt(record.data(), L"DryRun", m_config.DryRun) > 0;
 
     m_definitionsFuture = std::async(std::launch::async, [this]
@@ -471,15 +464,6 @@ LRESULT CALLBACK CAnnictRecorderPlugin::EventCallback(const UINT Event, const LP
         if (pThis->m_isEnabled)
         {
             pThis->Enable();
-
-            std::thread([pThis]
-            {
-                pThis->CheckCurrentProgram();
-            }).detach();
-        }
-        else
-        {
-            pThis->Disable();
         }
 
         return true;
@@ -585,7 +569,10 @@ LRESULT CALLBACK CAnnictRecorderPlugin::WndProc(const HWND hWnd, const UINT uMsg
         {
             auto* pThis = reinterpret_cast<CAnnictRecorderPlugin*>(::GetWindowLongPtr(hWnd, GWLP_USERDATA));
 
-            pThis->CheckCurrentProgram();
+            std::thread([pThis]
+            {
+                pThis->CheckCurrentProgram();
+            }).detach();
         }
 
         return false;

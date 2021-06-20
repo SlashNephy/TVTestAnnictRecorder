@@ -54,6 +54,12 @@ namespace AnnictRecorder
         {
             const auto work = Annict::GetMyWork(annictWorkId, Config.AnnictToken);
             const auto status = work.has_value() ? work.value()["status"]["kind"].get<std::string>() : "no_select";
+
+            if (status == "watched" && Config.SkipUpdateStatusIfAlreadyWatched)
+            {
+                return;
+            }
+
             if (status != newStatus.value())
             {
                 if (!Config.DryRun)
