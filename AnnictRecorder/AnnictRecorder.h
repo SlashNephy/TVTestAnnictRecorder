@@ -55,7 +55,12 @@ namespace AnnictRecorder
             const auto work = Annict::GetMyWork(annictWorkId, Config.AnnictToken);
             const auto status = work.has_value() ? work.value()["status"]["kind"].get<std::string>() : "no_select";
 
-            if (status == "watched" && Config.SkipUpdateStatusIfAlreadyWatched)
+            if (isFirstEpisode && status == "watched" && Config.SetWatchingStatusOnFirstEpisodeEvenIfWatched)
+            {
+                // [新] フラグが付いていて視聴済みの場合であってもステータスを更新する
+                // 分割2クールの場合など
+            }
+            else if (status == "watched" && Config.SkipUpdateStatusIfAlreadyWatched)
             {
                 return;
             }

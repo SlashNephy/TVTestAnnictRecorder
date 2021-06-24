@@ -80,6 +80,11 @@ TVTestAnnictRecorder が記録を行うためには以下の条件を満たす�
 ; デフォルト値: 0
 ; SkipUpdateStatusIfAlreadyWatched=1
 
+; 既に「見た」となっている作品でも [新] フラグが付いている番組を視聴した際に上記のオプションにより「見てる」に変更されるようにするかどうか。
+; 分割2クールのように同じ作品であっても [終] のあとに [新] となるようなケースで有効です。
+; デフォルト値: 0
+; SetWatchingStatusOnFirstEpisodeEvenIfWatched=1
+
 ; 1 に変更すると実際に記録は行いません。デバッグ用です。
 ; デフォルト値: 0
 ; DryRun=1
