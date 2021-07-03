@@ -180,7 +180,7 @@ namespace AnnictRecorder
     )
     {
         if (!Config.DryRun) {
-            Annict::PostMyStatus(annictWorkId, Config.AnnictToken, "watched");
+            Annict::PostMyStatus(annictWorkId, "watched", Config.AnnictToken);
         }
 
         const auto workName = Multi2Wide(workTitle);
