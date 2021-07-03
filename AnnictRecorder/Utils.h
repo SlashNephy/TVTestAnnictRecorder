@@ -63,6 +63,23 @@ static std::wstring Multi2Wide(const std::string source)
     return buf;
 }
 
+template <typename T>
+std::vector<T> flatten(const std::vector<std::vector<T>>& v) {
+    const auto totalSize = std::reduce(v.begin(), v.end(), static_cast<size_t>(0), [](const size_t acc, const std::vector<T>& vector)
+    {
+        return acc + vector.size();
+    });
+
+    std::vector<T> result;
+    result.reserve(totalSize);
+    for (const auto& sub : v)
+    {
+        result.insert(result.end(), sub.begin(), sub.end());
+    }
+    
+    return result;
+}
+
 #pragma region NicoJK
 // https://github.com/xtne6f/NicoJK/blob/83e7212b8cf4dfd50ac38d71ff1bb2b57c997318/Util.cpp#L45
 
