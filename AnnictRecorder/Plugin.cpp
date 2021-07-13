@@ -342,7 +342,7 @@ void CAnnictRecorderPlugin::CheckCurrentProgram()
             PrintDebug(L"記録するための閾値 ({} %) に達していません。スキップします。", m_config.RecordThresholdPercent);
             m_lastRecordResult = {
                 false,
-                std::format(L"AnnictRecorder 待機中... ({:.0f}%)", percent)
+                std::format(L"AnnictRecorder 待機中... ({:.0f}%)", std::floor(percent))
             };
 
             return;
