@@ -396,12 +396,12 @@ void CAnnictRecorderPlugin::CheckCurrentProgram()
         if (m_pApp->GetTuningSpaceInfo(m_pApp->GetTuningSpace(), &TuningSpace))
         {
             // チューナー空間名からチャンネルタイプを取得
-            ChannelType = Saya::GetSayaChannelTypeByName(TuningSpace.szName);
+            ChannelType = Saya::GetChannelTypeByName(TuningSpace.szName);
 
             // チューナー空間の enum からチャンネルタイプを取得
             if (!ChannelType.has_value())
             {
-                ChannelType = Saya::GetSayaChannelTypeByIndex(TuningSpace.Space);
+                ChannelType = Saya::GetChannelTypeByIndex(TuningSpace.Space);
             }
         }
 
@@ -418,14 +418,7 @@ void CAnnictRecorderPlugin::CheckCurrentProgram()
             if (result.success)
             {
                 m_pApp->AddLog(L"Annict に視聴記録を送信しました。");
-                m_pApp->AddLog(
-                    std::format(
-                        L"Annict 作品名: {}, エピソード名: {} ({})",
-                        result.workName.value_or(L"タイトル不明"),
-                        result.episodeName.value_or(L"サブタイトル不明"),
-                        result.episodeNumberText.value_or(L"話数不明")
-                    ).c_str()
-                );
+                m_pApp->AddLog(result.message.c_str());
                 Success = result;
             }
             else
@@ -560,7 +553,7 @@ LRESULT CALLBACK CAnnictRecorderPlugin::WndProc(const HWND hWnd, const UINT uMsg
             auto* pThis = static_cast<CAnnictRecorderPlugin*>(pcs->lpCreateParams);
 
             ::SetWindowLongPtr(hWnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(pThis));
-            ::SetTimer(hWnd, AnnictRecorderTimerId, AnnictRecorderTimerIntervalMs, nullptr);
+            SetTimer(hWnd, AnnictRecorderTimerId, AnnictRecorderTimerIntervalMs, nullptr);
         }
 
         return true;

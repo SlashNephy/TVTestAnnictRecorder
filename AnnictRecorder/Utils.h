@@ -41,6 +41,22 @@ static bool IsAnimeGenre(const TVTest::EpgEventInfo& EpgEvent)
     return result;
 }
 
+/*
+ * この番組が第1話であるかどうか判定する
+ */
+static bool IsFirstEpisode(const TVTest::ProgramInfo& Program)
+{
+    return std::wstring(Program.pszEventName).find(L"[新]") != std::string::npos;
+}
+
+/*
+ * この番組が最終話であるかどうか判定する
+ */
+static bool IsLastEpisode(const TVTest::ProgramInfo& Program)
+{
+    return std::wstring(Program.pszEventName).find(L"[終]") != std::string::npos;
+}
+
 static std::string Wide2Multi(const std::wstring source)
 {
     // ロケールの設定

@@ -18,12 +18,18 @@ namespace Saya
         return YAML::Load(response.text);
     }
 
+    struct Channel
+    {
+        std::optional<int> syobocalId;
+        std::optional<int> annictId;
+    };
+
     enum class ChannelType
     {
         GR, BS, CS, SKY
     };
 
-    static std::string GetNameOfSayaChannelType(const ChannelType type)
+    static std::string GetNameOfChannelType(const ChannelType type)
     {
         switch (type)
         {
@@ -40,7 +46,7 @@ namespace Saya
         throw;
     }
 
-    static std::optional<ChannelType> GetSayaChannelTypeByName(const std::wstring& name)
+    static std::optional<ChannelType> GetChannelTypeByName(const std::wstring& name)
     {
         if (name == L"GR")
         {
@@ -62,7 +68,7 @@ namespace Saya
         return std::nullopt;
     }
 
-    static std::optional<ChannelType> GetSayaChannelTypeByIndex(const int index)
+    static std::optional<ChannelType> GetChannelTypeByIndex(const int index)
     {
         switch (index)
         {
@@ -77,7 +83,7 @@ namespace Saya
         }
     }
 
-    static std::optional<YAML::Node> FindSayaChannel(const YAML::Node& yml, const std::optional<ChannelType> targetChannelType, const WORD targetServiceId)
+    static std::optional<Channel> FindChannel(const YAML::Node& yml, const std::optional<ChannelType> targetChannelType, const WORD targetServiceId)
     {
         const auto channels = yml["channels"];
 
@@ -88,7 +94,7 @@ namespace Saya
             // ReSharper disable once CppTooWideScope
             const auto channelType = channel["type"].as<std::string>();
 
-            if (targetChannelType.has_value() && channelType != GetNameOfSayaChannelType(targetChannelType.value()))
+            if (targetChannelType.has_value() && channelType != GetNameOfChannelType(targetChannelType.value()))
             {
                 return false;
             }
@@ -105,7 +111,14 @@ namespace Saya
 
         if (node != channels.end())
         {
-            return std::optional(node->as<YAML::Node>());
+            const auto item = node->as<YAML::Node>();
+            const auto syobocalId = item["syobocalId"];
+            const auto annictId = item["annictId"];
+
+            return Channel{
+                syobocalId.IsDefined() ? std::optional(syobocalId.as<int>()) : std::nullopt,
+                annictId.IsDefined() ? std::optional(annictId.as<int>()) : std::nullopt
+            };
         }
 
         return std::nullopt;

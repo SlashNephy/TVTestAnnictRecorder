@@ -16,10 +16,8 @@ namespace AnnictRecorder
     {
         bool success = false;
         std::wstring message{L"AnnictRecorder 待機中..."};
-        std::optional<std::wstring> workName{};
-        std::optional<std::wstring> episodeName{};
-        std::optional<uint16_t> episodeNumber{};
-        std::optional<std::wstring> episodeNumberText{};
+        std::optional<Annict::Work> work = std::nullopt;
+        std::optional<Annict::Episode> episode = std::nullopt;
     };
 
     static std::optional<std::wstring> GetWStringOrNull(const nlohmann::json& json, const std::string& key)
@@ -52,8 +50,8 @@ namespace AnnictRecorder
 
         if (newStatus.has_value())
         {
-            const auto work = Annict::GetMyWork(annictWorkId, Config.AnnictToken);
-            const auto status = work.has_value() ? work.value()["status"]["kind"].get<std::string>() : "no_select";
+            const auto workStatus = Annict::GetMyWorkStatus(annictWorkId, Config.AnnictToken);
+            const auto status = workStatus.value_or("no_select");
 
             if (isFirstEpisode && status == "watched" && Config.SetWatchingStatusOnFirstEpisodeEvenIfWatched)
             {
@@ -78,6 +76,55 @@ namespace AnnictRecorder
     }
 
     static CreateRecordResult CreateEpisodeRecord(
+        const Annict::Episode& episode,
+        const Config& Config
+    )
+    {
+        if (!Config.DryRun)
+        {
+            Annict::PostRecord(episode.id, Config.ShareOnTwitter, Config.ShareOnFacebook, Config.AnnictToken);
+        }
+
+        std::wstring message;
+        if (episode.number.has_value()) {
+            message = std::format(
+                L"#{}「{}」を記録しました。",
+                episode.number.value(),
+                Multi2Wide(episode.title.value_or("タイトル不明"))
+            );
+        }
+        else if (episode.numberText.has_value())
+        {
+            message = std::format(
+                L"{}「{}」を記録しました。",
+                Multi2Wide(episode.numberText.value()),
+                Multi2Wide(episode.title.value_or("タイトル不明"))
+            );
+        }
+        else if (episode.title.has_value())
+        {
+            message = std::format(
+                L"「{}」を記録しました。",
+                Multi2Wide(episode.title.value())
+            );
+        }
+        else
+        {
+            message = std::format(
+                L"「{}」を記録しました。",
+                Multi2Wide(episode.work.title)
+            );
+        }
+
+        return {
+            true,
+            message,
+            episode.work,
+            episode
+        };
+    }
+
+    static std::optional<Annict::Episode> FindEpisode(
         const uint32_t annictWorkId,
         const float_t episodeCount,
         const std::optional<std::string>& episodeTitle,
@@ -86,31 +133,42 @@ namespace AnnictRecorder
     {
         // Annict からエピソード一覧を取得して, 該当のエピソードを見つける
         const auto episodes = Annict::GetEpisodes(annictWorkId, Config.AnnictToken);
-        const auto episodeIterator = std::ranges::find_if(episodes, [episodeCount, episodeTitle](const nlohmann::json& episode)
+        const auto episodeIterator = std::ranges::find_if(episodes, [episodeCount, episodeTitle](const Annict::Episode& episode)
         {
             // 話数が一致
-            if (episode["number"].is_number() && episodeCount == episode["number"].get<float_t>())  // NOLINT(clang-diagnostic-float-equal)
+            if (episode.number.has_value() && episodeCount == episode.number.value())  // NOLINT(clang-diagnostic-float-equal)
             {
                 return true;
             }
 
             // 話数 (テキスト) が一致
             // まれに Annict 側に number だけ設定されていないデータがあるので文字列比較する
-            if (const auto numberText = std::format("第{:.0f}話", episodeCount); episode["number_text"].is_string() && numberText == episode["number_text"].get<std::string>())
+            if (const auto numberText = std::format("第{:.0f}話", episodeCount); episode.numberText.has_value() && numberText == episode.numberText.value())
             {
                 return true;
             }
 
-            if (const auto numberText = std::format("#{:.0f}", episodeCount); episode["number_text"].is_string() && numberText == episode["number_text"].get<std::string>())
+            if (const auto numberText = std::format("#{:.0f}", episodeCount); episode.numberText.has_value() && numberText == episode.numberText.value())
             {
                 return true;
             }
-            
+
             // サブタイトルが一致
-            return episodeTitle.has_value() && episode["title"].is_string() && episodeTitle.value() == episode["title"].get<std::string>();
+            return episodeTitle.has_value() && episode.title.has_value() && episodeTitle.value() == episode.title.value();
         });
 
-        if (episodeIterator == episodes.end())
+        return episodeIterator != episodes.end() ? std::optional(*episodeIterator) : std::nullopt;
+    }
+
+    static CreateRecordResult CreateEpisodeRecord(
+        const uint32_t annictWorkId,
+        const float_t episodeCount,
+        const std::optional<std::string>& episodeTitle,
+        const Config& Config
+    )
+    {
+        const auto episode = FindEpisode(annictWorkId, episodeCount, episodeTitle, Config);
+        if (!episode.has_value())
         {
             PrintDebug(L"Annict でのエピソードデータが見つかりませんでした。スキップします。(WorkID={}, Count={})", annictWorkId, episodeCount);
 
@@ -120,89 +178,30 @@ namespace AnnictRecorder
             };
         }
 
-        const auto& targetEpisode = *episodeIterator;
-        if (!Config.DryRun)
-        {
-            const auto annictEpisodeId = targetEpisode["id"].get<uint32_t>();
-            Annict::PostRecord(annictEpisodeId, Config.ShareOnTwitter, Config.ShareOnFacebook, Config.AnnictToken);
-        }
-
-        const auto workName = GetWStringOrNull(targetEpisode["work"], "title");
-        const auto episodeName = GetWStringOrNull(targetEpisode, "title");
-        const auto episodeNumber = targetEpisode["number"].is_number() ? std::optional(targetEpisode["number"].get<uint16_t>()) : std::nullopt;
-        const auto episodeNumberText = GetWStringOrNull(targetEpisode, "number_text");
-
-        std::wstring message;
-        if (episodeNumber.has_value()) {
-            message = std::format(
-                L"#{}「{}」を記録しました。",
-                episodeNumber.value(),
-                episodeName.value_or(L"タイトル不明")
-            );
-        }
-        else if (episodeNumberText.has_value())
-        {
-            message = std::format(
-                L"{}「{}」を記録しました。",
-                episodeNumberText.value(),
-                episodeName.value_or(L"タイトル不明")
-            );
-        }
-        else if (episodeName.has_value())
-        {
-            message = std::format(
-                L"「{}」を記録しました。",
-                episodeName.value()
-            );
-        }
-        else
-        {
-            message = std::format(
-                L"「{}」を記録しました。",
-                workName.value_or(L"タイトル不明")
-            );
-        }
-
-        return {
-            true,
-            message,
-            workName,
-            episodeName,
-            episodeNumber,
-            episodeNumberText
-        };
+        return CreateEpisodeRecord(episode.value(), Config);
     }
 
     static CreateRecordResult CreateWorkRecord(
-        const uint32_t annictWorkId,
-        const std::string& workTitle,
+        const Annict::Work& work,
         const Config& Config
     )
     {
         if (!Config.DryRun) {
-            Annict::PostMyStatus(annictWorkId, "watched", Config.AnnictToken);
+            Annict::PostMyStatus(work.id, "watched", Config.AnnictToken);
         }
-
-        const auto workName = Multi2Wide(workTitle);
 
         return {
             true,
-            std::format(L"「{}」を記録しました。", workName),
-            workName,
-            std::nullopt,
+            std::format(L"「{}」を記録しました。", Multi2Wide(work.title)),
             std::nullopt,
             std::nullopt
         };
     }
 
     static std::vector<CreateRecordResult> CreateRecordEach(
-        // Annict 作品 ID
-        const uint32_t annictWorkId,
-        // 作品名
-        const std::string& workTitle,
-        // 開始話数
+        const Annict::Work& work,
+        // 開始話数, 終了話数
         const float_t episodeNumberStart,
-        // 終了話数
         const float_t episodeNumberEnd,
         // エピソード名
         const std::optional<std::string>& episodeTitle,
@@ -220,7 +219,7 @@ namespace AnnictRecorder
         {
             // エピソードで別れていない場合, 作品自体を「見た」に設定
             return {
-                CreateWorkRecord(annictWorkId, workTitle, Config)
+                CreateWorkRecord(work, Config)
             };
         }
 
@@ -228,11 +227,11 @@ namespace AnnictRecorder
         auto results = std::vector<CreateRecordResult>();
         for (auto count = episodeNumberStart; count <= episodeNumberEnd; count++)  // NOLINT(cert-flp30-c)
         {
-            const auto result = CreateEpisodeRecord(annictWorkId, count, episodeTitle, Config);
+            const auto result = CreateEpisodeRecord(work.id, count, episodeTitle, Config);
             results.push_back(result);
         }
 
-        UpdateWorkStatus(annictWorkId, isFirstEpisode, isLastEpisode, Config);
+        UpdateWorkStatus(work.id, isFirstEpisode, isLastEpisode, Config);
 
         return results;
     }
@@ -246,29 +245,9 @@ namespace AnnictRecorder
         const YAML::Node& SayaDefinitions
     )
     {
-        // しょぼいカレンダー Ch ID
-        int syoboCalChId;
-
-        // saya のチャンネル定義からしょぼいカレンダーの Ch ID を見つける
-        if (const auto ChannelDefinition = FindSayaChannel(SayaDefinitions, ChannelType, Service.ServiceID); ChannelDefinition.has_value())
-        {
-            if (const auto rawSyoboCalId = ChannelDefinition.value()["syobocalId"]; rawSyoboCalId.IsDefined())
-            {
-                syoboCalChId = rawSyoboCalId.as<int>();
-            }
-            else
-            {
-                PrintDebug(L"しょぼいカレンダーに登録されていないチャンネルです。スキップします。");
-
-                return {
-                    {
-                        false,
-                        L"しょぼいカレンダーに登録されていないチャンネルです。"
-                    }
-                };
-            }
-        }
-        else
+        // saya のチャンネル定義
+        const auto ChannelDefinition = FindChannel(SayaDefinitions, ChannelType, Service.ServiceID);
+        if (!ChannelDefinition.has_value())
         {
             PrintDebug(L"saya のチャンネル定義に存在しないチャンネルです。スキップします。(サービス名: {}, サービス ID: {})", Service.szServiceName, Service.ServiceID);
 
@@ -281,52 +260,98 @@ namespace AnnictRecorder
         }
 
         // [新] フラグから第1話判定を行う
-        auto isFirstEpisode = std::wstring(Program.pszEventName).find(L"[新]") != std::string::npos;
+        auto isFirstEpisode = IsFirstEpisode(Program);
         // [終] フラグから最終話判定を行う
-        auto isLastEpisode = std::wstring(Program.pszEventName).find(L"[終]") != std::string::npos;
+        auto isLastEpisode = IsLastEpisode(Program);
 
-        // しょぼいカレンダーに放送時間が登録されている場合
-        if (const auto syoboCalPrograms = SyoboCal::LookupProgram(Program.StartTime, Program.Duration, syoboCalChId); !syoboCalPrograms.empty())
+        // しょぼいカレンダーの ChID が登録されている場合
+        if (ChannelDefinition.value().syobocalId.has_value())
         {
-            auto results = std::vector<std::vector<CreateRecordResult>>{};
-            for (const auto& syoboCalProgram : syoboCalPrograms)
-            {
-                // kawaiioverflow/arm から しょぼいカレンダー TID → Annict 作品 ID を見つける
-                const auto syoboCalTID = syoboCalProgram.titleId;
-                if (!AnnictIds.contains(syoboCalTID))
-                {
-                    PrintDebug(L"Annict での作品データが見つかりませんでした。スキップします。(TID={})", syoboCalTID);
+            // しょぼいカレンダー ChID
+            const auto syoboCalChId = ChannelDefinition.value().syobocalId.value();
 
-                    return {
-                        {
-                            false,
-                            L"Annictに作品データが見つかりません。"
-                        }
-                    };
+            // しょぼいカレンダーに放送時間が登録されている場合
+            if (const auto syoboCalPrograms = SyoboCal::LookupProgram(Program.StartTime, Program.Duration, syoboCalChId); !syoboCalPrograms.empty())
+            {
+                auto results = std::vector<std::vector<CreateRecordResult>>{};
+                for (const auto& syoboCalProgram : syoboCalPrograms)
+                {
+                    // kawaiioverflow/arm から しょぼいカレンダー TID → Annict 作品 ID を見つける
+                    const auto syoboCalTID = syoboCalProgram.titleId;
+                    if (!AnnictIds.contains(syoboCalTID))
+                    {
+                        PrintDebug(L"Annict での作品データが見つかりませんでした。スキップします。(TID={})", syoboCalTID);
+
+                        return {
+                            {
+                                false,
+                                L"Annictに作品データが見つかりません。"
+                            }
+                        };
+                    }
+
+                    const auto annictWorkId = AnnictIds[syoboCalTID];
+                    const auto annictWork = Annict::GetWorkById(annictWorkId, Config.AnnictToken);
+
+                    results.push_back(
+                        CreateRecordEach(
+                            annictWork.value(),
+                            syoboCalProgram.countStart,
+                            syoboCalProgram.countEnd,
+                            syoboCalProgram.subTitle,
+                            isFirstEpisode || syoboCalProgram.isFirstEpisode || syoboCalProgram.countStart <= 1,
+                            isLastEpisode || syoboCalProgram.isLastEpisode,
+                            annictWork.value().hasNoEpisodes,
+                            Config
+                        )
+                    );
                 }
 
-                const auto annictWorkId = AnnictIds[syoboCalTID];
-                const auto annictWork = Annict::GetWorkById(annictWorkId, Config.AnnictToken);
-
-                results.push_back(
-                    CreateRecordEach(
-                        annictWorkId,
-                        annictWork.value()["title"].get<std::string>(),
-                        syoboCalProgram.countStart,
-                        syoboCalProgram.countEnd,
-                        syoboCalProgram.subTitle,
-                        isFirstEpisode || syoboCalProgram.isFirstEpisode || syoboCalProgram.countStart == 1,  // NOLINT(clang-diagnostic-float-equal)
-                        isLastEpisode || syoboCalProgram.isLastEpisode,
-                        annictWork.value()["no_episodes"].get<bool>(),
-                        Config
-                    )
-                );
+                return flatten(results);
             }
-
-            return flatten(results);
         }
 
-        // しょぼいカレンダーに放送時間が未登録の場合は正規表現で検出を試みる
+        // Annict の ChID が登録されている場合
+        if (ChannelDefinition.value().annictId.has_value())
+        {
+            const auto annictChId = ChannelDefinition.value().annictId.value();
+
+            FILETIME localFt, utcFt;
+            SYSTEMTIME utcStartTime;
+            SystemTimeToFileTime(&Program.StartTime, &localFt);
+            LocalFileTimeToFileTime(&localFt, &utcFt);
+            FileTimeToSystemTime(&utcFt, &utcStartTime);
+
+            // Annict に放送時間が登録されている場合
+            if (const auto annictPrograms = Annict::GetMyPrograms(annictChId, utcStartTime, Program.Duration, Config.AnnictToken); !annictPrograms.empty())
+            {
+                auto results = std::vector<std::vector<CreateRecordResult>>{};
+                for (const auto& annictProgram : annictPrograms)
+                {
+                    if (!annictProgram.episode.number.has_value())
+                    {
+                        continue;
+                    }
+
+                    results.push_back(
+                        CreateRecordEach(
+                            annictProgram.work,
+                            annictProgram.episode.number.value(),
+                            annictProgram.episode.number.value(),
+                            annictProgram.episode.title,
+                            isFirstEpisode || annictProgram.episode.number.value() <= 1,  // NOLINT(clang-diagnostic-float-equal)
+                            isLastEpisode,
+                            annictProgram.work.hasNoEpisodes,
+                            Config
+                        )
+                    );
+                }
+
+                return flatten(results);
+            }
+        }
+
+        // しょぼいカレンダー / Annict に放送時間が未登録の場合は正規表現で検出を試みる
 
         // AT-X
         if (Service.ServiceID == 333)
@@ -349,14 +374,13 @@ namespace AnnictRecorder
             if (const auto annictWork = Annict::GetWorkByTitle(workTitle, Config.AnnictToken); annictWork.has_value())
             {
                 return CreateRecordEach(
-                    annictWork.value()["id"].get<uint32_t>(),
-                    workTitle,
+                    annictWork.value(),
                     extraction.countStart,
                     extraction.countEnd,
                     std::nullopt,
                     isFirstEpisode || extraction.countStart == 1,  // NOLINT(clang-diagnostic-float-equal)
                     isLastEpisode,
-                    annictWork.value()["no_episodes"].get<bool>(),
+                    annictWork.value().hasNoEpisodes,
                     Config
                 );
             }
@@ -369,12 +393,12 @@ namespace AnnictRecorder
             };
         }
 
-        PrintDebug(L"しょぼいカレンダーに放送時刻が登録されていません。スキップします。(ChID={})", syoboCalChId);
+        PrintDebug(L"しょぼいカレンダー / Annict に放送時刻が登録されていません。スキップします。(Service={}, SID={})", Service.szServiceName, Service.ServiceID);
 
         return {
             {
                 false,
-                L"しょぼいカレンダーに放送時刻データがありません。"
+                L"放送時刻データがありません。"
             }
         };
     }
