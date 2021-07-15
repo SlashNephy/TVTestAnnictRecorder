@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 
 #include "pch.h"
 
@@ -17,7 +17,7 @@ void PrintDebug(const wchar_t* format, const Variable&... variables)
     {
         wchar_t errorText[512 + 1];
         mbstowcs_s(nullptr, errorText, error.what(), 512);
-        message = std::format(L"ƒtƒH[ƒ}ƒbƒg‚Ì‘®‚ªŠÔˆá‚Á‚Ä‚¢‚Ü‚·B({})\n{}\n", format, errorText);
+        message = std::format(L"ãƒ•ã‚©ãƒ¼ãƒãƒƒãƒˆã®æ›¸å¼ãŒé–“é•ã£ã¦ã„ã¾ã™ã€‚({})\n{}\n", format, errorText);
     }
 
     OutputDebugString(message.c_str());   
@@ -25,7 +25,7 @@ void PrintDebug(const wchar_t* format, const Variable&... variables)
 
 inline void PrintDebugW(const std::wstring& label, const std::string& str)
 {
-    // ƒƒP[ƒ‹‚Ìİ’è
+    // ãƒ­ã‚±ãƒ¼ãƒ«ã®è¨­å®š
     setlocale(LC_ALL, ".utf8");
 
     wchar_t buf[1024];
