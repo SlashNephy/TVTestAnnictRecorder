@@ -534,6 +534,26 @@ LRESULT CALLBACK CAnnictRecorderPlugin::EventCallback(const UINT Event, const LP
             }
         }
 
+    // ステータス項目のマウス操作
+    case TVTest::EVENT_STATUSITEM_MOUSE:
+        {
+            switch (const auto pInfo = reinterpret_cast<const TVTest::StatusItemMouseEventInfo*>(lParam1); pInfo->Action)
+            {
+                // マウスの左ボタン
+                case TVTest::STATUS_ITEM_MOUSE_ACTION_LDOWN:
+                    {
+                        if (pThis->m_lastRecordResult.url.has_value())
+                        {
+                            ShellExecute(nullptr, nullptr, pThis->m_lastRecordResult.url.value().c_str(), nullptr, nullptr, SW_SHOW);
+                        }
+
+                        return true;
+                    }
+                default:
+                    return false;
+            }
+        }
+
     default:
         return false;
     }

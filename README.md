@@ -15,6 +15,7 @@
   - [しょぼいカレンダー](https://cal.syoboi.jp/) に登録されている番組で機能します。(ほとんど網羅されています。)
   - しょぼいカレンダーにデータのない AT-X のリピート放送や, 一挙放送にも対応しています。
   - 番組に複数のエピソードがある場合 (2話同時放送等) すべてのエピソードに記録を行います。
+  - ステータスバーに Annict への記録状況が通知され, クリックした際には該当の Annict のページに飛ぶようになっています。
 - 次のオプションがあります。
   - 記録と同時に Twitter や Facebook に投稿する。
   - 第1話 (または最終話以外のエピソード) を視聴した際に Annict での作品のステータスを「見てる」に変更する。
@@ -102,8 +103,10 @@ msbuild TVTestAnnictRecorder.sln -property:Configuration="Release" -property:Pla
 
 ## Acknowledgements
 
-TVTestAnnictRecorder は以下の OSS プロジェクトを利用しています。ありがとうございます。
+TVTestAnnictRecorder は以下のサービス, OSS プロジェクトを利用しています。ありがとうございます。
 
+- [しょぼいカレンダー](https://cal.syoboi.jp)
+- [Annict](https://annict.com)
 - [kawaiioverflow/arm](https://github.com/kawaiioverflow/arm)
 - [xtne6f/TvtPlay](https://github.com/xtne6f/TvtPlay)
 - [whoshuu/cpr](https://github.com/whoshuu/cpr)

@@ -18,18 +18,8 @@ namespace AnnictRecorder
         std::wstring message{L"AnnictRecorder 待機中..."};
         std::optional<Annict::Work> work = std::nullopt;
         std::optional<Annict::Episode> episode = std::nullopt;
+        std::optional<std::wstring> url = std::nullopt;
     };
-
-    static std::optional<std::wstring> GetWStringOrNull(const nlohmann::json& json, const std::string& key)
-    {
-        if (!json.is_object() || !json[key].is_string())
-        {
-            return std::nullopt;
-        }
-
-        const auto value = json[key].get<std::string>();
-        return Multi2Wide(value);
-    }
 
     static void UpdateWorkStatus(
         const uint32_t annictWorkId,
@@ -120,7 +110,8 @@ namespace AnnictRecorder
             true,
             message,
             episode.work,
-            episode
+            episode,
+            std::format(L"https://annict.com/works/{}/episodes/{}", episode.work.id, episode.id)
         };
     }
 
@@ -193,8 +184,9 @@ namespace AnnictRecorder
         return {
             true,
             std::format(L"「{}」を記録しました。", Multi2Wide(work.title)),
+            work,
             std::nullopt,
-            std::nullopt
+            std::format(L"https://annict.com/works/{}", work.id)
         };
     }
 
