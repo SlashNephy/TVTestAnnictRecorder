@@ -3,7 +3,7 @@
 [![GitHub Workflow Status](https://img.shields.io/github/workflow/status/SlashNephy/TVTestAnnictRecorder/latest?style=flat-square)](https://github.com/SlashNephy/TVTestAnnictRecorder/actions)
 [![GitHub release (latest by date)](https://img.shields.io/github/v/release/SlashNephy/TVTestAnnictRecorder?style=flat-square)](https://github.com/SlashNephy/TVTestAnnictRecorder/releases)
 
-📝 視聴したアニメを自動で [Annict](https://annict.jp/) に記録する TVTest プラグイン (TVTest 0.9.0 以降が必要)
+📝 視聴したアニメを自動で [Annict](https://annict.com/) に記録する TVTest プラグイン (TVTest 0.9.0 以降が必要)
 
 [![statusbar.png](https://raw.githubusercontent.com/SlashNephy/TVTestAnnictRecorder/master/docs/statusbar.png)](https://github.com/SlashNephy/TVTestAnnictRecorder)
 
@@ -42,7 +42,7 @@ TVTestAnnictRecorder が記録を行うためには以下の条件を満たす�
 ```ini
 [Annict]
 ; Annict の個人用アクセストークンを設定します。トークンが設定されていない場合, 記録は行いません。
-; https://annict.jp/settings/tokens/new で発行できます。
+; https://annict.com/settings/tokens/new で発行できます。
 ; スコープを「読み取り + 書き込み」に設定する必要があります。
 ; Token=xxx
 
