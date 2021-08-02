@@ -5,7 +5,7 @@
 
 📝 視聴したアニメを自動で [Annict](https://annict.com/) に記録する TVTest プラグイン (TVTest 0.9.0 以降が必要)
 
-[![statusbar.png](https://raw.githubusercontent.com/SlashNephy/TVTestAnnictRecorder/master/docs/statusbar.png)](https://github.com/SlashNephy/TVTestAnnictRecorder)
+[![statusbar.png](https://i.imgur.com/vZDneZO.png)](https://github.com/SlashNephy/TVTestAnnictRecorder)
 
 ## Features
 
