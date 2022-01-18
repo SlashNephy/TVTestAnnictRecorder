@@ -9,7 +9,7 @@ on:
 
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: windows-2022
 
     strategy:
       fail-fast: false
@@ -29,7 +29,7 @@ jobs:
         uses: lukka/run-vcpkg@v7
         with:
           setupOnly: true
-          vcpkgGitCommitId: 261c458af6e3eed5d099144aff95d2b5035f656b
+          vcpkgGitCommitId: bba8794b82a0f44b8709f294850a2c8e96b61415
           vcpkgTriplet: ${{ matrix.platform }}-windows
           appendedCacheKey: ${{ hashFiles( '**/vcpkg.json' ) }}
 
