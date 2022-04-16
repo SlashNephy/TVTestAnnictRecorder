@@ -52,6 +52,10 @@ namespace AnnictRecorder
             {
                 return;
             }
+            else if (status == "stop_watching" && Config.SkipUpdateStatusIfAlreadyStopWatching)
+            {
+                return;
+            }
 
             if (status != newStatus.value())
             {
