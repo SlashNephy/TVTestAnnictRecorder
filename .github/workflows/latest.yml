@@ -29,7 +29,7 @@ jobs:
         uses: lukka/run-vcpkg@v7
         with:
           setupOnly: true
-          vcpkgGitCommitId: bba8794b82a0f44b8709f294850a2c8e96b61415
+          vcpkgGitCommitId: aebb363eaa0b658beb19cbefdd5aa2f9cbc14f1e
           vcpkgTriplet: ${{ matrix.platform }}-windows
           appendedCacheKey: ${{ hashFiles( '**/vcpkg.json' ) }}
 
