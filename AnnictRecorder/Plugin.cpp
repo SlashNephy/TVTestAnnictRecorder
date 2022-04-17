@@ -182,7 +182,6 @@ void CAnnictRecorderPlugin::LoadConfig()
     m_config.SetWatchingStatusInAnyEpisodes = GetBufferedProfileInt(record.data(), L"SetWatchingStatusInAnyEpisodes", m_config.SetWatchingStatusInAnyEpisodes) > 0;
     m_config.SetWatchedInLastEpisode = GetBufferedProfileInt(record.data(), L"SetWatchedInLastEpisode", m_config.SetWatchedInLastEpisode) > 0;
     m_config.SkipUpdateStatusIfAlreadyWatched = GetBufferedProfileInt(record.data(), L"SkipUpdateStatusIfAlreadyWatched", m_config.SkipUpdateStatusIfAlreadyWatched) > 0;
-    m_config.SkipUpdateStatusIfAlreadyStopWatching = GetBufferedProfileInt(record.data(), L"SkipUpdateStatusIfAlreadyStopWatching", m_config.SkipUpdateStatusIfAlreadyStopWatching) > 0;
     m_config.SetWatchingStatusOnFirstEpisodeEvenIfWatched = GetBufferedProfileInt(record.data(), L"SetWatchingStatusOnFirstEpisodeEvenIfWatched", m_config.SetWatchingStatusOnFirstEpisodeEvenIfWatched) > 0;
     m_config.DryRun = GetBufferedProfileInt(record.data(), L"DryRun", m_config.DryRun) > 0;
 
