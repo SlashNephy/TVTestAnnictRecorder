@@ -7,6 +7,12 @@
 
 [![statusbar.png](https://i.imgur.com/vZDneZO.png)](https://github.com/SlashNephy/TVTestAnnictRecorder)
 
+## TODO
+
+- Rust で rewrite する
+  - `src/` では、ゆるりと Rust 化を行っています
+- パネル API に Annict 情報を表示したい
+
 ## Features
 
 - Annict へ視聴したアニメの該当エピソードの記録を自動で行います。

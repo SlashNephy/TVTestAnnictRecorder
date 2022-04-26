@@ -1,0 +1,10 @@
+[package]
+name = "annict-recorder"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+tvtest = { path = "Thirdparty/TVTestSDK-rs/sdk" }

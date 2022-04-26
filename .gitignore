@@ -351,3 +351,9 @@ MigrationBackup/
 
 # Ignore vcpkg package cache
 vcpkg_installed/
+
+.idea
+
+# Added by cargo
+
+/target

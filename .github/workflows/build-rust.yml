@@ -1,0 +1,45 @@
+name: build-rust
+
+on:
+  push:
+    paths-ignore:
+      - '*.md'
+
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    runs-on: windows-2022
+
+    steps:
+      # https://zenn.dev/kt3k/articles/d557cc874961ab
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Install Python
+        uses: actions/setup-python@v3
+      - name: Download git-restore-mtime
+        run: curl -O https://raw.githubusercontent.com/MestreLion/git-tools/main/git-restore-mtime
+      - name: Restore mtime
+        run: python ./git-restore-mtime
+
+      - name: Build
+        run: cargo build --verbose --release
+
+      - name: Prepare Artifacts
+        shell: powershell
+        run: |
+          New-Item -Path Artifacts -ItemType Directory
+          Copy-Item -Path target/release/annict-recorder.dll -Destination Artifacts/annict-recorder.tvtp
+          Copy-Item -Path AnnictRecorder.ini -Destination Artifacts/
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: annict-recorder-rs
+          if-no-files-found: error
+          path: Artifacts/

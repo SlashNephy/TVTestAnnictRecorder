@@ -1,4 +1,4 @@
-name: latest
+name: build-cpp
 
 on:
   push:
