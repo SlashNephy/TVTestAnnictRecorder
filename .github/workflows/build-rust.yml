@@ -2,8 +2,8 @@ name: build-rust
 
 on:
   push:
-    paths-ignore:
-      - '*.md'
+    paths:
+      - 'src/**'
 
   workflow_dispatch:
 
@@ -19,6 +19,7 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v3
         with:
+          submodules: recursive
           fetch-depth: 0
       - name: Install Python
         uses: actions/setup-python@v3

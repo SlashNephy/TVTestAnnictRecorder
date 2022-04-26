@@ -2,8 +2,8 @@ name: build-cpp
 
 on:
   push:
-    paths-ignore:
-      - '*.md'
+    paths:
+      - 'AnnictRecorder/**'
 
   workflow_dispatch:
 
