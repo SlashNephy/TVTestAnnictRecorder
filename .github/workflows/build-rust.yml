@@ -35,7 +35,7 @@ jobs:
         shell: powershell
         run: |
           New-Item -Path Artifacts -ItemType Directory
-          Copy-Item -Path target/release/annict-recorder.dll -Destination Artifacts/annict-recorder.tvtp
+          Copy-Item -Path target/release/annict_recorder.dll -Destination Artifacts/annict_recorder.tvtp
           Copy-Item -Path AnnictRecorder.ini -Destination Artifacts/
 
       - name: Upload Artifacts
