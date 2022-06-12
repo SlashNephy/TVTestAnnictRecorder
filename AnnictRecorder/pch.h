@@ -30,7 +30,11 @@
 #pragma comment(lib, "cpr.lib")
 
 #include "yaml-cpp/yaml.h"
+#ifdef _DEBUG
+#pragma comment(lib, "yaml-cppd.lib")
+#else
 #pragma comment(lib, "yaml-cpp.lib")
+#endif
 
 #include "nlohmann/json.hpp"
 
