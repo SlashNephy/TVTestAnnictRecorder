@@ -2,6 +2,7 @@
 
 #include "AnnictRecorder.h"
 #include "ArmApi.h"
+#include "Capture.h"
 #include "Config.h"
 #include "Debug.h"
 #include "SayaApi.h"
@@ -183,7 +184,16 @@ void CAnnictRecorderPlugin::LoadConfig()
     m_config.SetWatchedInLastEpisode = GetBufferedProfileInt(record.data(), L"SetWatchedInLastEpisode", m_config.SetWatchedInLastEpisode) > 0;
     m_config.SkipUpdateStatusIfAlreadyWatched = GetBufferedProfileInt(record.data(), L"SkipUpdateStatusIfAlreadyWatched", m_config.SkipUpdateStatusIfAlreadyWatched) > 0;
     m_config.SetWatchingStatusOnFirstEpisodeEvenIfWatched = GetBufferedProfileInt(record.data(), L"SetWatchingStatusOnFirstEpisodeEvenIfWatched", m_config.SetWatchingStatusOnFirstEpisodeEvenIfWatched) > 0;
-    m_config.DryRun = GetBufferedProfileInt(record.data(), L"DryRun", m_config.DryRun) > 0;
+	m_config.RecordDryRun = GetBufferedProfileInt(record.data(), L"DryRun", m_config.RecordDryRun) > 0;
+
+    wchar_t discordTokenW[AnnictRecorder::MaxDiscordTokenLength];
+    ::GetPrivateProfileString(L"Discord", L"Token", L"", discordTokenW, AnnictRecorder::MaxDiscordTokenLength, m_iniFileName);
+    wcstombs_s(nullptr, m_config.DiscordToken, discordTokenW, AnnictRecorder::MaxDiscordTokenLength - 1);
+    wchar_t discordChannelIdW[AnnictRecorder::MaxDiscordChannelIdLength];
+    ::GetPrivateProfileString(L"Discord", L"ChannelId", L"", discordChannelIdW, AnnictRecorder::MaxDiscordChannelIdLength, m_iniFileName);
+    wcstombs_s(nullptr, m_config.DiscordChannelId, discordChannelIdW, AnnictRecorder::MaxDiscordChannelIdLength - 1);
+    const auto discord = GetPrivateProfileSectionBuffer(L"Discord", m_iniFileName);
+	m_config.DiscordDryRun = GetBufferedProfileInt(discord.data(), L"DryRun", m_config.DiscordDryRun) > 0;
 
     m_definitionsFuture = std::async(std::launch::async, [this]
     {
@@ -549,6 +559,59 @@ LRESULT CALLBACK CAnnictRecorderPlugin::EventCallback(const UINT Event, const LP
 
                         return true;
                     }
+	            case TVTest::STATUS_ITEM_MOUSE_ACTION_RDOWN:
+	                {
+						std::thread([pThis]
+                        {
+                            if (auto bitmap = pThis->m_pApp->CaptureImage(); bitmap != nullptr)
+                            {
+                                const auto result = Capture::ConvertToPng(bitmap);
+                                if (result.has_value())
+                                {
+                                	const auto json = nlohmann::json({
+                                        {"content", ""},
+                                        // {"nonce", ""},
+                                        {"channel_id", pThis->m_config.DiscordChannelId},
+                                        {"type", 0},
+                                        {"sticker_ids", nlohmann::json::array()},
+                                        {"attachments", nlohmann::json::array({
+                                            {
+                                                {"id", "0"},
+                                                {"filename", "unknown.png"}
+                                            }
+                                        })}
+                                	});
+
+                                    const auto jsonContent = json.dump();
+
+                                    if (!pThis->m_config.DiscordDryRun)
+                                    {
+	                                    const auto response = cpr::Post(
+	                                        cpr::Url{ std::format("https://discord.com/api/v9/channels/{}/messages", pThis->m_config.DiscordChannelId) },
+	                                        cpr::Header{
+	                                            {"accept", "*/*"},
+	                                            {"accept-language", "ja"},
+	                                            {"authorization", pThis->m_config.DiscordToken},
+	                                            {"origin", "https://discord.com"},
+	                                            {"x-discord-locale", "ja"},
+	                                        },
+	                                        cpr::UserAgent{ "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) discord/1.0.9005 Chrome/91.0.4472.164 Electron/13.6.6 Safari/537.36" },
+	                                        cpr::Multipart{
+	                                            {"files[0]", cpr::Buffer{result.value().begin(), result.value().end(), "unknown.png"}, "image/png"},
+	                                            {"payload_json", jsonContent, "application/json"},
+	                                        }
+	                                    );
+
+	                                    PrintDebug(L"Status = {}", response.status_code);
+                                    }
+                                }
+
+                                pThis->m_pApp->MemoryFree(bitmap);
+                            }
+                        }).detach();
+
+                        return true;
+	                }
                 default:
                     return false;
             }

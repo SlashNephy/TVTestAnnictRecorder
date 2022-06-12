@@ -55,7 +55,7 @@ namespace AnnictRecorder
 
             if (status != newStatus.value())
             {
-                if (!Config.DryRun)
+                if (!Config.RecordDryRun)
                 {
                     Annict::PostMyStatus(annictWorkId, newStatus.value(), Config.AnnictToken);
                 }
@@ -70,7 +70,7 @@ namespace AnnictRecorder
         const Config& Config
     )
     {
-        if (!Config.DryRun)
+        if (!Config.RecordDryRun)
         {
             Annict::PostRecord(episode.id, Config.ShareOnTwitter, Config.ShareOnFacebook, Config.AnnictToken);
         }
@@ -177,7 +177,7 @@ namespace AnnictRecorder
         const Config& Config
     )
     {
-        if (!Config.DryRun) {
+        if (!Config.RecordDryRun) {
             Annict::PostMyStatus(work.id, "watched", Config.AnnictToken);
         }
 

@@ -39,11 +39,10 @@
 #include "nlohmann/json.hpp"
 
 #include "pugixml.hpp"
-#ifdef _DEBUG
-#pragma comment(lib, "pugixml_d.lib")
-#else
 #pragma comment(lib, "pugixml.lib")
-#endif
+
+#include "lodepng.h"
+#pragma comment(lib, "lodepng.lib")
 
 // プラグインをクラスとして実装
 #define TVTEST_PLUGIN_CLASS_IMPLEMENT
