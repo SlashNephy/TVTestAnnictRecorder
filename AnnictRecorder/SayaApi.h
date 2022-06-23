@@ -6,7 +6,7 @@
 
 namespace Saya
 {
-    constexpr auto DefinitionsYmlUrl = "https://raw.githubusercontent.com/SlashNephy/saya/dev/docs/definitions.yml";
+    constexpr auto DefinitionsYmlUrl = "https://raw.githubusercontent.com/SlashNephy/saya-definitions/master/definitions.yml";
 
     static YAML::Node LoadSayaDefinitions()
     {
