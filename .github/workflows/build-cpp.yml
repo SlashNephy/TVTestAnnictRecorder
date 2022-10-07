@@ -26,7 +26,7 @@ jobs:
         uses: microsoft/setup-msbuild@v1
 
       - name: Setup vcpkg
-        uses: lukka/run-vcpkg@v10.4
+        uses: lukka/run-vcpkg@v10.5
         with:
           runVcpkgInstall: true
           vcpkgGitCommitId: 8e1f46de11423e5f7d2395458f5252738ffffbbd
