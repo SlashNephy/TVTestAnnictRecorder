@@ -107,4 +107,34 @@ namespace SyoboCal
 
         return results;
     }
+
+    static std::optional<std::wstring> LookupTitle(const uint32_t tid)
+    {
+        const auto response = cpr::Get(
+            cpr::Url{ "https://cal.syoboi.jp/db.php" },
+            cpr::Parameters{
+                {"Command", "TitleLookup"},
+                {"TID", std::to_string(tid)}
+            },
+            cpr::UserAgent{ AnnictRecorderUserAgent }
+        );
+
+        PrintDebugW(L"TitleLookup", response.text);
+
+        pugi::xml_document doc;
+        if (!doc.load_string(response.text.c_str()))
+        {
+            return std::nullopt;
+        }
+
+        const auto items = doc.select_nodes("/TitleLookupResponse/TitleItems/TitleItem");
+        if (items.size() != 1)
+        {
+            return std::nullopt;
+        }
+
+        const auto item = items.first();
+        const auto node = item.node();
+        return Multi2Wide(node.child_value("Title"));
+    }
 }

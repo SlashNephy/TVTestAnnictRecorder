@@ -270,33 +270,58 @@ namespace AnnictRecorder
                 {
                     // kawaiioverflow/arm から しょぼいカレンダー TID → Annict 作品 ID を見つける
                     const auto syoboCalTID = syoboCalProgram.titleId;
-                    if (!AnnictIds.contains(syoboCalTID))
+                    if (AnnictIds.contains(syoboCalTID))
                     {
-                        PrintDebug(L"Annict での作品データが見つかりませんでした。スキップします。(TID={})", syoboCalTID);
+                        // しょぼいカレンダー TID と Annict 作品 ID が紐付いている
+                        const auto annictWorkId = AnnictIds[syoboCalTID];
+                        const auto annictWork = Annict::GetWorkById(annictWorkId, Config.AnnictToken);
 
-                        return {
-                            {
-                                false,
-                                L"Annictに作品データが見つかりません。"
-                            }
-                        };
+                        results.push_back(
+                            CreateRecordEach(
+                                annictWork.value(),
+                                syoboCalProgram.countStart,
+                                syoboCalProgram.countEnd,
+                                syoboCalProgram.subTitle,
+                                isFirstEpisode || syoboCalProgram.isFirstEpisode || syoboCalProgram.countStart <= 1,
+                                isLastEpisode || syoboCalProgram.isLastEpisode,
+                                annictWork.value().hasNoEpisodes,
+                                Config
+                            )
+                        );
                     }
+                    else
+                    {
+                        // 紐ついていないので、作品名から Annict 作品 ID を見つける
+                        const auto title = SyoboCal::LookupTitle(syoboCalTID);
+                        if (title.has_value())
+                        {
+                            const auto workTitle = Wide2Multi(title.value());
+                            if (const auto annictWork = Annict::GetWorkByTitle(workTitle, Config.AnnictToken); annictWork.has_value())
+                            {
+                                results.push_back(
+                                    CreateRecordEach(
+                                        annictWork.value(),
+                                        syoboCalProgram.countStart,
+                                        syoboCalProgram.countEnd,
+                                        syoboCalProgram.subTitle,
+                                        isFirstEpisode || syoboCalProgram.isFirstEpisode || syoboCalProgram.countStart <= 1,
+                                        isLastEpisode || syoboCalProgram.isLastEpisode,
+                                        annictWork.value().hasNoEpisodes,
+                                        Config
+                                    )
+                                );
+                            }
+                        }
+                    }
+                }
 
-                    const auto annictWorkId = AnnictIds[syoboCalTID];
-                    const auto annictWork = Annict::GetWorkById(annictWorkId, Config.AnnictToken);
-
-                    results.push_back(
-                        CreateRecordEach(
-                            annictWork.value(),
-                            syoboCalProgram.countStart,
-                            syoboCalProgram.countEnd,
-                            syoboCalProgram.subTitle,
-                            isFirstEpisode || syoboCalProgram.isFirstEpisode || syoboCalProgram.countStart <= 1,
-                            isLastEpisode || syoboCalProgram.isLastEpisode,
-                            annictWork.value().hasNoEpisodes,
-                            Config
-                        )
-                    );
+                if (results.empty()) {
+                    return {
+                        {
+                            false,
+                            L"Annictに作品データが見つかりません。"
+                        }
+                    };
                 }
 
                 return flatten(results);
