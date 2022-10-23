@@ -3,17 +3,17 @@
 #include "pch.h"
 
 #ifdef _DEBUG
-template<typename... Variable>
-void PrintDebug(const wchar_t* format, const Variable&... variables)
+template<class... Args>
+void PrintDebug(const wchar_t* format, const Args&... args)
 {
     std::wstring message;
 
-    try {
-        auto fmt = std::wstring(format);
-        fmt.append(L"\n");
-
-        message = std::format(fmt, variables...);
-    } catch (std::format_error& error)
+    try
+    {
+        message = std::vformat(format, { std::make_wformat_args(args...) });
+        message.append(L"\n");
+    }
+    catch (std::format_error& error)
     {
         wchar_t errorText[512 + 1];
         mbstowcs_s(nullptr, errorText, error.what(), 512);
