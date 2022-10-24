@@ -41,6 +41,7 @@ TVTestAnnictRecorder が記録を行うためには以下の条件を満たす�
 - しょぼいカレンダーと Annict で相互変換できる
   - [kawaiioverflow/arm](https://github.com/kawaiioverflow/arm) を利用しています。
   - 頻繁に更新されており, 最近のアニメなら間違いなく追加されています。ありがとうございます。
+  - 代替ソースとして [SlashNephy/arm-supplementary](https://github.com/SlashNephy/arm-supplementary) を利用しています。
 
 ## Configuration
 
