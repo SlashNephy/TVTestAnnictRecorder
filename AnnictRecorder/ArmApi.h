@@ -6,7 +6,7 @@
 
 namespace Arm
 {
-    constexpr auto ArmJsonUrl = "https://raw.githubusercontent.com/kawaiioverflow/arm/master/arm.json";
+    constexpr auto ArmJsonUrl = "https://raw.githubusercontent.com/SlashNephy/arm-supplementary/master/dist/arm.json";
 
     static void LoadArmJson(std::map<uint32_t, uint32_t>& map)
     {
