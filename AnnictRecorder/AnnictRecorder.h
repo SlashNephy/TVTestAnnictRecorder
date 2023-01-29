@@ -76,19 +76,20 @@ namespace AnnictRecorder
         }
 
         std::wstring message;
-        if (episode.number.has_value()) {
-            message = std::format(
-                L"#{}「{}」を記録しました。",
-                episode.number.value(),
-                Multi2Wide(episode.title.value_or("タイトル不明"))
-            );
-        }
-        else if (episode.numberText.has_value())
+        if (episode.numberText.has_value())
         {
             message = std::format(
                 L"{}「{}」を記録しました。",
                 Multi2Wide(episode.numberText.value()),
-                Multi2Wide(episode.title.value_or("タイトル不明"))
+                Multi2Wide(episode.title.value_or("???"))
+            );
+        }
+        else if (episode.number.has_value())
+        {
+            message = std::format(
+                L"#{}「{}」を記録しました。",
+                episode.number.value(),
+                Multi2Wide(episode.title.value_or("???"))
             );
         }
         else if (episode.title.has_value())
