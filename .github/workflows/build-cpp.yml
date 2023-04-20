@@ -26,10 +26,10 @@ jobs:
         uses: microsoft/setup-msbuild@v1
 
       - name: Setup vcpkg
-        uses: lukka/run-vcpkg@v11.1
+        uses: lukka/run-vcpkg@v11
         with:
           runVcpkgInstall: true
-          vcpkgGitCommitId: 8e1f46de11423e5f7d2395458f5252738ffffbbd
+          vcpkgGitCommitId: 2b1757dd1d5ed7d9d5bb65fd8316631b157e7afc
         env:
           VCPKG_DEFAULT_TRIPLET: ${{ matrix.platform }}-windows
 
