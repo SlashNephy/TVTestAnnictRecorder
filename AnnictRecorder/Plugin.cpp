@@ -45,7 +45,7 @@ class CAnnictRecorderPlugin final : public TVTest::CTVTestPlugin
     void LoadConfig();
     void CheckCurrentProgram();
 
-    static LRESULT CALLBACK EventCallback(UINT Event, LPARAM lParam1, LPARAM lParam2, void* pClientData);
+    static LRESULT CALLBACK EventCallback(UINT Event, LPARAM lParam1, LPARAM lParam2, void *pClientData);
     static LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
 public:
@@ -62,7 +62,7 @@ public:
     /*
      * プラグインの情報を返す
      */
-    bool GetPluginInfo(TVTest::PluginInfo* pInfo) override
+    bool GetPluginInfo(TVTest::PluginInfo *pInfo) override
     {
         pInfo->Type = TVTest::PLUGIN_TYPE_NORMAL;
         pInfo->Flags = 0;
@@ -103,8 +103,7 @@ public:
         // ウィンドウの作成
         m_hWnd = ::CreateWindowEx(
             0, AnnictRecorderWindowClass, nullptr, WS_POPUP,
-            0, 0, 0, 0, HWND_MESSAGE, nullptr, g_hinstDLL, this
-        );
+            0, 0, 0, 0, HWND_MESSAGE, nullptr, g_hinstDLL, this);
         if (m_hWnd == nullptr)
         {
             m_pApp->AddLog(L"ウィンドウの作成に失敗しました。");
@@ -149,7 +148,7 @@ public:
 /*
  * プラグインのインスタンスを作成する
  */
-TVTest::CTVTestPlugin* CreatePluginClass()
+TVTest::CTVTestPlugin *CreatePluginClass()
 {
     return new CAnnictRecorderPlugin;
 }
@@ -184,7 +183,7 @@ void CAnnictRecorderPlugin::LoadConfig()
     m_config.SetWatchedInLastEpisode = GetBufferedProfileInt(record.data(), L"SetWatchedInLastEpisode", m_config.SetWatchedInLastEpisode) > 0;
     m_config.SkipUpdateStatusIfAlreadyWatched = GetBufferedProfileInt(record.data(), L"SkipUpdateStatusIfAlreadyWatched", m_config.SkipUpdateStatusIfAlreadyWatched) > 0;
     m_config.SetWatchingStatusOnFirstEpisodeEvenIfWatched = GetBufferedProfileInt(record.data(), L"SetWatchingStatusOnFirstEpisodeEvenIfWatched", m_config.SetWatchingStatusOnFirstEpisodeEvenIfWatched) > 0;
-	m_config.RecordDryRun = GetBufferedProfileInt(record.data(), L"DryRun", m_config.RecordDryRun) > 0;
+    m_config.RecordDryRun = GetBufferedProfileInt(record.data(), L"DryRun", m_config.RecordDryRun) > 0;
 
     wchar_t discordTokenW[AnnictRecorder::MaxDiscordTokenLength];
     ::GetPrivateProfileString(L"Discord", L"Token", L"", discordTokenW, AnnictRecorder::MaxDiscordTokenLength, m_iniFileName);
@@ -193,52 +192,50 @@ void CAnnictRecorderPlugin::LoadConfig()
     ::GetPrivateProfileString(L"Discord", L"ChannelId", L"", discordChannelIdW, AnnictRecorder::MaxDiscordChannelIdLength, m_iniFileName);
     wcstombs_s(nullptr, m_config.DiscordChannelId, discordChannelIdW, AnnictRecorder::MaxDiscordChannelIdLength - 1);
     const auto discord = GetPrivateProfileSectionBuffer(L"Discord", m_iniFileName);
-	m_config.DiscordDryRun = GetBufferedProfileInt(discord.data(), L"DryRun", m_config.DiscordDryRun) > 0;
+    m_config.DiscordDryRun = GetBufferedProfileInt(discord.data(), L"DryRun", m_config.DiscordDryRun) > 0;
 
     m_definitionsFuture = std::async(std::launch::async, [this]
-    {
+                                     {
         try
         {
             m_definitions = Saya::LoadSayaDefinitions();
 
             m_pApp->AddLog(
-                std::format(L"saya のチャンネル定義ファイルを読み込みました。(チャンネル数: {})", m_definitions["channels"].size()).c_str()
+                std::format(L"sayaのチャンネル定義ファイルを読み込みました。(チャンネル数: {})", m_definitions["channels"].size()).c_str()
             );
         }
-        catch (cpr::Error&)
+        catch (...)
         {
             m_lastRecordResult = {
                 false,
                 L"sayaのチャンネル定義ファイルが利用できません。"
             };
             m_pApp->AddLog(
-                std::format(L"saya のチャンネル定義ファイルの読み込みに失敗しました。").c_str(),
+                std::format(L"sayaのチャンネル定義ファイルの読み込みに失敗しました。").c_str(),
                 TVTest::LOG_TYPE_ERROR
             );
-        }
-    });
+        } });
 
     m_annictIdsFuture = std::async(std::launch::async, [this]
-    {
+                                   {
         try {
             Arm::LoadArmJson(m_annictIds);
 
             m_pApp->AddLog(
-                std::format(L"kawaiioverflow/arm の定義ファイルを読み込みました。(作品数: {})", m_annictIds.size()).c_str()
+                std::format(L"SlashNephy/arm-supplementaryの定義ファイルを読み込みました。(作品数: {})", m_annictIds.size()).c_str()
             );
         }
-        catch (cpr::Error&)
+        catch (...)
         {
             m_lastRecordResult = {
                 false,
-                L"kawaiioverflow/armの定義ファイルが利用できません。"
+                L"SlashNephy/arm-supplementaryの定義ファイルが利用できません。"
             };
             m_pApp->AddLog(
-                std::format(L"kawaiioverflow/arm の定義ファイルの読み込みに失敗しました。").c_str(),
+                std::format(L"SlashNephy/arm-supplementaryの定義ファイルの読み込みに失敗しました。").c_str(),
                 TVTest::LOG_TYPE_ERROR
             );
-        }
-    });
+        } });
 
     m_isReady = strlen(m_config.AnnictToken) > 0;
 }
@@ -307,7 +304,8 @@ void CAnnictRecorderPlugin::CheckCurrentProgram()
         // 番組の固有 ID
         const auto programId = 100000ul * Program.ServiceID + Program.EventID;
 
-        if (m_recorded[programId]) {
+        if (m_recorded[programId])
+        {
             PrintDebug(L"既に Annict に記録済です。スキップします。");
             return;
         }
@@ -322,7 +320,7 @@ void CAnnictRecorderPlugin::CheckCurrentProgram()
         {
             const auto pos = GetTvtPlayPositionSec(tvtPlayHwnd);
             percent = duration > 0 ? 100.0 * pos / duration : 100;
-            
+
             shouldRecord = percent >= m_config.RecordThresholdPercent;
             PrintDebug(L"視聴位置 = {:.1f} %", percent);
         }
@@ -352,8 +350,7 @@ void CAnnictRecorderPlugin::CheckCurrentProgram()
             PrintDebug(L"記録するための閾値 ({} %) に達していません。スキップします。", m_config.RecordThresholdPercent);
             m_lastRecordResult = {
                 false,
-                std::format(L"AnnictRecorder 待機中... ({:.0f}%)", std::floor(percent))
-            };
+                std::format(L"AnnictRecorder 待機中... ({:.0f}%)", std::floor(percent))};
 
             return;
         }
@@ -394,8 +391,7 @@ void CAnnictRecorderPlugin::CheckCurrentProgram()
             PrintDebug(L"アニメジャンルではありません。スキップします。");
             m_lastRecordResult = {
                 false,
-                L"アニメジャンルではありません。"
-            };
+                L"アニメジャンルではありません。"};
 
             return;
         }
@@ -423,7 +419,7 @@ void CAnnictRecorderPlugin::CheckCurrentProgram()
         AnnictRecorder::CreateRecordResult Success{};
         AnnictRecorder::CreateRecordResult Failed{true};
 
-        for (const auto& result : CreateRecord(m_config, Service.value(), Program, ChannelType, m_annictIds, m_definitions))
+        for (const auto &result : CreateRecord(m_config, Service.value(), Program, ChannelType, m_annictIds, m_definitions))
         {
             if (result.success)
             {
@@ -442,8 +438,7 @@ void CAnnictRecorderPlugin::CheckCurrentProgram()
             m_pApp->AddLog(L"Annict に視聴記録を送信できませんでした。Annict 上に見つからない作品か, しょぼいカレンダーに放送時間が登録されていません。", TVTest::LOG_TYPE_WARNING);
             m_pApp->AddLog(Failed.message.c_str());
             m_pApp->AddLog(
-                std::format(L"番組名: {}, サービス名: {}", Program.pszEventName, Service.value().szServiceName).c_str()
-            );
+                std::format(L"番組名: {}, サービス名: {}", Program.pszEventName, Service.value().szServiceName).c_str());
         }
 
         m_lastRecordResult = Failed.success ? Success : Failed;
@@ -456,9 +451,9 @@ void CAnnictRecorderPlugin::CheckCurrentProgram()
 /*
  * TVTest のイベントコールバック
  */
-LRESULT CALLBACK CAnnictRecorderPlugin::EventCallback(const UINT Event, const LPARAM lParam1, LPARAM, void* pClientData)
+LRESULT CALLBACK CAnnictRecorderPlugin::EventCallback(const UINT Event, const LPARAM lParam1, LPARAM, void *pClientData)
 {
-    auto* pThis = static_cast<CAnnictRecorderPlugin*>(pClientData);
+    auto *pThis = static_cast<CAnnictRecorderPlugin *>(pClientData);
 
     switch (Event)
     {
@@ -478,16 +473,15 @@ LRESULT CALLBACK CAnnictRecorderPlugin::EventCallback(const UINT Event, const LP
         pThis->m_lastRecordResult = {};
 
         std::thread([pThis]
-        {
-            pThis->CheckCurrentProgram();
-        }).detach();
+                    { pThis->CheckCurrentProgram(); })
+            .detach();
 
         return true;
 
     case TVTest::EVENT_STATUSITEM_DRAW:
         // ステータス項目の描画
         {
-            const auto pInfo = reinterpret_cast<const TVTest::StatusItemDrawInfo*>(lParam1);
+            const auto pInfo = reinterpret_cast<const TVTest::StatusItemDrawInfo *>(lParam1);
 
             std::wstring status;
             if ((pInfo->Flags & TVTest::STATUS_ITEM_DRAW_FLAG_PREVIEW) == 0)
@@ -507,61 +501,60 @@ LRESULT CALLBACK CAnnictRecorderPlugin::EventCallback(const UINT Event, const LP
                 status.c_str(),
                 pInfo->DrawRect,
                 DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS,
-                pInfo->Color
-            );
+                pInfo->Color);
         }
 
         return true;
 
     // ステータス項目の通知
     case TVTest::EVENT_STATUSITEM_NOTIFY:
+    {
+        switch (const auto *pInfo = reinterpret_cast<const TVTest::StatusItemEventInfo *>(lParam1); pInfo->Event)
         {
-            switch (const auto * pInfo = reinterpret_cast<const TVTest::StatusItemEventInfo*>(lParam1); pInfo->Event)
-            {
-            // 項目が作成された
-            case TVTest::STATUS_ITEM_EVENT_CREATED:
-                {
-                    TVTest::StatusItemSetInfo StatusItemSet{};
-                    StatusItemSet.Size = sizeof StatusItemSet;
-                    StatusItemSet.Mask = TVTest::STATUS_ITEM_SET_INFO_MASK_STATE;
-                    StatusItemSet.ID = AnnictRecorderStatusItemId;
-                    StatusItemSet.StateMask = TVTest::STATUS_ITEM_STATE_VISIBLE;
-                    // プラグインが有効であれば項目を表示状態にする
-                    StatusItemSet.State = pThis->m_pApp->IsPluginEnabled() ? TVTest::STATUS_ITEM_STATE_VISIBLE : 0;
+        // 項目が作成された
+        case TVTest::STATUS_ITEM_EVENT_CREATED:
+        {
+            TVTest::StatusItemSetInfo StatusItemSet{};
+            StatusItemSet.Size = sizeof StatusItemSet;
+            StatusItemSet.Mask = TVTest::STATUS_ITEM_SET_INFO_MASK_STATE;
+            StatusItemSet.ID = AnnictRecorderStatusItemId;
+            StatusItemSet.StateMask = TVTest::STATUS_ITEM_STATE_VISIBLE;
+            // プラグインが有効であれば項目を表示状態にする
+            StatusItemSet.State = pThis->m_pApp->IsPluginEnabled() ? TVTest::STATUS_ITEM_STATE_VISIBLE : 0;
 
-                    pThis->m_pApp->SetStatusItem(&StatusItemSet);
-                }
-
-                return true;
-
-            // 更新タイマー
-            case TVTest::STATUS_ITEM_EVENT_UPDATETIMER:
-                // true を返すと再描画される
-                return true;
-
-            default:
-                return false;
-            }
+            pThis->m_pApp->SetStatusItem(&StatusItemSet);
         }
+
+            return true;
+
+        // 更新タイマー
+        case TVTest::STATUS_ITEM_EVENT_UPDATETIMER:
+            // true を返すと再描画される
+            return true;
+
+        default:
+            return false;
+        }
+    }
 
     // ステータス項目のマウス操作
     case TVTest::EVENT_STATUSITEM_MOUSE:
+    {
+        switch (const auto pInfo = reinterpret_cast<const TVTest::StatusItemMouseEventInfo *>(lParam1); pInfo->Action)
         {
-            switch (const auto pInfo = reinterpret_cast<const TVTest::StatusItemMouseEventInfo*>(lParam1); pInfo->Action)
+        // マウスの左ボタン
+        case TVTest::STATUS_ITEM_MOUSE_ACTION_LDOWN:
+        {
+            if (pThis->m_lastRecordResult.url.has_value())
             {
-                // マウスの左ボタン
-                case TVTest::STATUS_ITEM_MOUSE_ACTION_LDOWN:
-                    {
-                        if (pThis->m_lastRecordResult.url.has_value())
-                        {
-                            ShellExecute(nullptr, nullptr, pThis->m_lastRecordResult.url.value().c_str(), nullptr, nullptr, SW_SHOW);
-                        }
+                ShellExecute(nullptr, nullptr, pThis->m_lastRecordResult.url.value().c_str(), nullptr, nullptr, SW_SHOW);
+            }
 
-                        return true;
-                    }
-	            case TVTest::STATUS_ITEM_MOUSE_ACTION_RDOWN:
-	                {
-						std::thread([pThis]
+            return true;
+        }
+        case TVTest::STATUS_ITEM_MOUSE_ACTION_RDOWN:
+        {
+            std::thread([pThis]
                         {
                             if (auto bitmap = pThis->m_pApp->CaptureImage(); bitmap != nullptr)
                             {
@@ -586,36 +579,41 @@ LRESULT CALLBACK CAnnictRecorderPlugin::EventCallback(const UINT Event, const LP
 
                                     if (!pThis->m_config.DiscordDryRun)
                                     {
-	                                    const auto response = cpr::Post(
-	                                        cpr::Url{ std::format("https://discord.com/api/v9/channels/{}/messages", pThis->m_config.DiscordChannelId) },
-	                                        cpr::Header{
-	                                            {"accept", "*/*"},
-	                                            {"accept-language", "ja"},
-	                                            {"authorization", pThis->m_config.DiscordToken},
-	                                            {"origin", "https://discord.com"},
-	                                            {"x-discord-locale", "ja"},
-	                                        },
-	                                        cpr::UserAgent{ "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) discord/1.0.9005 Chrome/91.0.4472.164 Electron/13.6.6 Safari/537.36" },
-	                                        cpr::Multipart{
-	                                            {"files[0]", cpr::Buffer{result.value().begin(), result.value().end(), "unknown.png"}, "image/png"},
-	                                            {"payload_json", jsonContent, "application/json"},
-	                                        }
-	                                    );
+                                        try {
+                                            const auto response = cpr::Post(
+                                                cpr::Url{ std::format("https://discord.com/api/v9/channels/{}/messages", pThis->m_config.DiscordChannelId) },
+                                                cpr::Header{
+                                                    {"accept", "*/*"},
+                                                    {"accept-language", "ja"},
+                                                    {"authorization", pThis->m_config.DiscordToken},
+                                                    {"origin", "https://discord.com"},
+                                                    {"x-discord-locale", "ja"},
+                                                },
+                                                cpr::UserAgent{ "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) discord/1.0.9005 Chrome/91.0.4472.164 Electron/13.6.6 Safari/537.36" },
+                                                cpr::Multipart{
+                                                    {"files[0]", cpr::Buffer{result.value().begin(), result.value().end(), "unknown.png"}, "image/png"},
+                                                    {"payload_json", jsonContent, "application/json"},
+                                                }
+                                            );
 
-	                                    PrintDebug(L"Status = {}", response.status_code);
+                                            PrintDebug(L"Status = {}", response.status_code);
+                                        }
+                                        catch (...)
+                                        {
+                                        }
                                     }
                                 }
 
                                 pThis->m_pApp->MemoryFree(bitmap);
-                            }
-                        }).detach();
+                            } })
+                .detach();
 
-                        return true;
-	                }
-                default:
-                    return false;
-            }
+            return true;
         }
+        default:
+            return false;
+        }
+    }
 
     default:
         return false;
@@ -631,25 +629,24 @@ LRESULT CALLBACK CAnnictRecorderPlugin::WndProc(const HWND hWnd, const UINT uMsg
     switch (uMsg)
     {
     case WM_CREATE:
-        {
-            auto* const pcs = reinterpret_cast<LPCREATESTRUCT>(lParam);
-            auto* pThis = static_cast<CAnnictRecorderPlugin*>(pcs->lpCreateParams);
+    {
+        auto *const pcs = reinterpret_cast<LPCREATESTRUCT>(lParam);
+        auto *pThis = static_cast<CAnnictRecorderPlugin *>(pcs->lpCreateParams);
 
-            ::SetWindowLongPtr(hWnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(pThis));
-            SetTimer(hWnd, AnnictRecorderTimerId, AnnictRecorderTimerIntervalMs, nullptr);
-        }
+        ::SetWindowLongPtr(hWnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(pThis));
+        SetTimer(hWnd, AnnictRecorderTimerId, AnnictRecorderTimerIntervalMs, nullptr);
+    }
 
         return true;
 
     case WM_TIMER:
         if (wParam == AnnictRecorderTimerId)
         {
-            auto* pThis = reinterpret_cast<CAnnictRecorderPlugin*>(::GetWindowLongPtr(hWnd, GWLP_USERDATA));
+            auto *pThis = reinterpret_cast<CAnnictRecorderPlugin *>(::GetWindowLongPtr(hWnd, GWLP_USERDATA));
 
             std::thread([pThis]
-            {
-                pThis->CheckCurrentProgram();
-            }).detach();
+                        { pThis->CheckCurrentProgram(); })
+                .detach();
         }
 
         return false;
