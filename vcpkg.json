@@ -1,14 +1,30 @@
 {
-  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg/master/scripts/vcpkg.schema.json",
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
   "name": "tvtest-annict-recorder-plugin",
   "version-string": "0.0.1",
   "port-version": 6,
   "homepage": "https://github.com/SlashNephy/TVTestAnnictRecorder",
+  "builtin-baseline": "962e5e39f8a25f42522f51fffc574e05a3efd26b",
   "dependencies": [
-    "cpr",
-    "yaml-cpp",
-    "nlohmann-json",
-    "pugixml",
-    "lodepng"
+    {
+      "name": "cpr",
+      "version>=": "1.10.2+3"
+    },
+    {
+      "name": "yaml-cpp",
+      "version>=": "0.7.0#1"
+    },
+    {
+      "name": "nlohmann-json",
+      "version>=": "3.11.2"
+    },
+    {
+      "name": "pugixml",
+      "version>=": "1.13.0"
+    },
+    {
+      "name": "lodepng",
+      "version>=": "2021-12-04#1"
+    }
   ]
 }
