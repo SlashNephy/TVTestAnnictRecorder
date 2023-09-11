@@ -1,4 +1,4 @@
 #pragma once
 
-constexpr auto AnnictRecorderVersion = "0.0.1";
-constexpr auto AnnictRecorderUserAgent = "TVTestAnnictRecorder/0.0.1 (+https://github.com/SlashNephy/TVTestAnnictRecorder)";
+constexpr auto AnnictRecorderVersion = "1.0.0";
+constexpr auto AnnictRecorderUserAgent = "TVTestAnnictRecorder/1.0.0 (+https://github.com/SlashNephy/TVTestAnnictRecorder)";
