@@ -12,6 +12,7 @@ namespace AnnictRecorder
         char AnnictToken[MaxAnnictTokenLength]{};
 
         // Record
+        bool Enabled = true;
         int RecordThresholdPercent = 20;
         bool ShareOnTwitter = false;
         bool ShareOnFacebook = false;

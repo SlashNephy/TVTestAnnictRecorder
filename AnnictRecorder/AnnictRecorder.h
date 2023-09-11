@@ -15,7 +15,7 @@ namespace AnnictRecorder
     struct CreateRecordResult
     {
         bool success = false;
-        std::wstring message{L"AnnictRecorder 待機中..."};
+        std::wstring message{L"AnnictRecorder"};
         std::optional<Annict::Work> work = std::nullopt;
         std::optional<Annict::Episode> episode = std::nullopt;
         std::optional<std::wstring> url = std::nullopt;

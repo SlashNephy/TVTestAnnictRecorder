@@ -67,7 +67,7 @@ public:
         pInfo->Type = TVTest::PLUGIN_TYPE_NORMAL;
         pInfo->Flags = 0;
         pInfo->pszPluginName = L"Annict Recorder";
-        pInfo->pszCopyright = L"© 2021 Nep";
+        pInfo->pszCopyright = L"© 2023 SlashNephy";
         pInfo->pszDescription = L"視聴したアニメの視聴記録を自動で Annict に送信します。";
 
         return true;
@@ -184,6 +184,7 @@ void CAnnictRecorderPlugin::LoadConfig()
     m_config.SkipUpdateStatusIfAlreadyWatched = GetBufferedProfileInt(record.data(), L"SkipUpdateStatusIfAlreadyWatched", m_config.SkipUpdateStatusIfAlreadyWatched) > 0;
     m_config.SetWatchingStatusOnFirstEpisodeEvenIfWatched = GetBufferedProfileInt(record.data(), L"SetWatchingStatusOnFirstEpisodeEvenIfWatched", m_config.SetWatchingStatusOnFirstEpisodeEvenIfWatched) > 0;
     m_config.RecordDryRun = GetBufferedProfileInt(record.data(), L"DryRun", m_config.RecordDryRun) > 0;
+    m_config.Enabled = GetBufferedProfileInt(record.data(), L"Enabled", m_config.Enabled) > 0;
 
     wchar_t discordTokenW[AnnictRecorder::MaxDiscordTokenLength];
     ::GetPrivateProfileString(L"Discord", L"Token", L"", discordTokenW, AnnictRecorder::MaxDiscordTokenLength, m_iniFileName);
@@ -348,10 +349,23 @@ void CAnnictRecorderPlugin::CheckCurrentProgram()
         if (!shouldRecord)
         {
             PrintDebug(L"記録するための閾値 ({} %) に達していません。スキップします。", m_config.RecordThresholdPercent);
-            m_lastRecordResult = {
-                false,
-                std::format(L"AnnictRecorder 待機中... ({:.0f}%)", std::floor(percent))};
+            if (m_config.Enabled) {
+                m_lastRecordResult = {
+                    false,
+                    std::format(L"AnnictRecorder 待機中... ({:.0f}%)", std::floor(percent)) };
+            }
+            else
+            {
+                m_lastRecordResult = {
+                    false,
+                    L"AnnictRecorder 一時停止中..." };
+            }
 
+            return;
+        }
+
+        if (!m_config.Enabled)
+        {
             return;
         }
 
@@ -548,6 +562,15 @@ LRESULT CALLBACK CAnnictRecorderPlugin::EventCallback(const UINT Event, const LP
             if (pThis->m_lastRecordResult.url.has_value())
             {
                 ShellExecute(nullptr, nullptr, pThis->m_lastRecordResult.url.value().c_str(), nullptr, nullptr, SW_SHOW);
+            }
+            else
+            {
+                pThis->m_config.Enabled = !pThis->m_config.Enabled;
+                WritePrivateProfileInt(L"Record", L"Enabled", pThis->m_config.Enabled, pThis->m_iniFileName);
+
+                std::thread([pThis]
+                    { pThis->CheckCurrentProgram(); })
+                    .detach();
             }
 
             return true;
