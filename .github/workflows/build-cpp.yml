@@ -29,7 +29,7 @@ jobs:
         uses: lukka/run-vcpkg@v11
         with:
           runVcpkgInstall: true
-          vcpkgGitCommitId: 2b1757dd1d5ed7d9d5bb65fd8316631b157e7afc
+          vcpkgGitCommitId: 962e5e39f8a25f42522f51fffc574e05a3efd26b
         env:
           VCPKG_DEFAULT_TRIPLET: ${{ matrix.platform }}-windows
 
