@@ -1,8 +1,8 @@
 use std::cell::Cell;
 use std::sync::atomic::{AtomicI32, Ordering};
-use tvtest::enumflags2::BitFlag;
-use tvtest::api::PluginApi;
 use tvtest::{export_plugin, TVTestEventHandler, TVTestPlugin};
+use tvtest::api::PluginApi;
+use tvtest::enumflags2::BitFlag;
 use tvtest::plugin::{PluginFlag, PluginInfo, PluginKind};
 use tvtest::version::{DEFAULT_API_VERSION, Version};
 use tvtest::win32::{IntoRustString, UnsafeIntoRustString, WideStringPtr};
@@ -41,7 +41,6 @@ impl TVTestPlugin for AnnictRecorderPlugin {
     }
 }
 
-impl TVTestEventHandler for AnnictRecorderPlugin {
-}
+impl TVTestEventHandler for AnnictRecorderPlugin {}
 
 export_plugin!(AnnictRecorderPlugin);

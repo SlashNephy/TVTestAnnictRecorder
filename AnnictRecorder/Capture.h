@@ -2,15 +2,14 @@
 
 #include "pch.h"
 
-namespace Capture
-{
+namespace Capture {
     static int DecodeBmp(
-        std::vector<unsigned char>& image,
-        unsigned& w,
-        unsigned& h,
-        const void* ptr
+            std::vector<unsigned char> &image,
+            unsigned &w,
+            unsigned &h,
+            const void *ptr
     ) {
-        const auto header = static_cast<const BITMAPINFOHEADER*>(ptr);
+        const auto header = static_cast<const BITMAPINFOHEADER *>(ptr);
 
         PrintDebug(L"biSize = {}", header->biSize);
         PrintDebug(L"biSizeImage = {}", header->biSizeImage);
@@ -42,18 +41,17 @@ namespace Capture
         -each scanline has padding bytes to make it a multiple of 4 if needed
         The 2D for loop below does all these 3 conversions at once.
         */
-        for (unsigned y = 0; y < h; y++)
-        {
-            for (unsigned x = 0; x < w; x++)
-            {
+        for (unsigned y = 0; y < h; y++) {
+            for (unsigned x = 0; x < w; x++) {
                 //pixel start byte position in the BMP
-                const auto bmpos = reinterpret_cast<uintptr_t>(ptr) + pixeloffset + (h - y - 1) * scanlineBytes + numChannels * x;
+                const auto bmpos =
+                        reinterpret_cast<uintptr_t>(ptr) + pixeloffset + (h - y - 1) * scanlineBytes + numChannels * x;
                 //pixel start byte position in the new raw image
                 const auto newpos = 4 * y * w + 4 * x;
 
-                image[newpos + 0] = *reinterpret_cast<unsigned char*>(bmpos + 2); //R
-                image[newpos + 1] = *reinterpret_cast<unsigned char*>(bmpos + 1); //G
-                image[newpos + 2] = *reinterpret_cast<unsigned char*>(bmpos + 0); //B
+                image[newpos + 0] = *reinterpret_cast<unsigned char *>(bmpos + 2); //R
+                image[newpos + 1] = *reinterpret_cast<unsigned char *>(bmpos + 1); //G
+                image[newpos + 2] = *reinterpret_cast<unsigned char *>(bmpos + 0); //B
                 // 透明度情報が保持できないバグらしい
                 // https://github.com/lvandeve/lodepng/issues/42
                 image[newpos + 3] = 255; // numChannels == 3 ? 255 : *reinterpret_cast<unsigned char*>(bmpos + 3); //A
@@ -63,7 +61,7 @@ namespace Capture
         return 0;
     }
 
-    static std::optional<std::vector<unsigned char>> ConvertToPng(const void* ptr) {
+    static std::optional <std::vector<unsigned char>> ConvertToPng(const void *ptr) {
         std::vector<unsigned char> bmp, png;
         unsigned w, h;
 

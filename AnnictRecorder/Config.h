@@ -1,13 +1,11 @@
 #pragma once
 
-namespace AnnictRecorder
-{
+namespace AnnictRecorder {
     constexpr auto MaxAnnictTokenLength = 64;
     constexpr auto MaxDiscordTokenLength = 256;
     constexpr auto MaxDiscordChannelIdLength = 32;
 
-    struct Config
-    {
+    struct Config {
         // Annict
         char AnnictToken[MaxAnnictTokenLength]{};
 
