@@ -25,15 +25,12 @@
 #include <thread>
 
 #include <Shlwapi.h>
-
 #pragma comment(lib, "shlwapi.lib")
 
 #include "cpr/cpr.h"
-
 #pragma comment(lib, "cpr.lib")
 
 #include "yaml-cpp/yaml.h"
-
 #ifdef _DEBUG
 #pragma comment(lib, "yaml-cppd.lib")
 #else
@@ -43,11 +40,9 @@
 #include "nlohmann/json.hpp"
 
 #include "pugixml.hpp"
-
 #pragma comment(lib, "pugixml.lib")
 
 #include "lodepng.h"
-
 #pragma comment(lib, "lodepng.lib")
 
 // プラグインをクラスとして実装

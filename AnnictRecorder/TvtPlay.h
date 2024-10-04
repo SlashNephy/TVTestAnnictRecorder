@@ -9,25 +9,29 @@ constexpr auto WM_TVTP_GET_POSITION = WM_APP + 52;
 
 static BOOL CALLBACK
 
-FindTvtPlayFrameEnumProc(const HWND hwnd, const LPARAM lParam) {
-    if (TCHAR className[32]; GetClassName(hwnd, className, _countof(className)) &&
-                             !lstrcmp(className, L"TvtPlay Frame")) {
-        *reinterpret_cast<HWND *>(lParam) = hwnd;
-        return false;
-    }
+FindTvtPlayFrameEnumProc(const HWND hwnd, const LPARAM lParam)
+{
+  TCHAR className[32];
+  if (GetClassName(hwnd, className, _countof(className)) && !lstrcmp(className, L"TvtPlay Frame"))
+  {
+    *reinterpret_cast<HWND *>(lParam) = hwnd;
+    return false;
+  }
 
-    return true;
+  return true;
 }
 
-static HWND FindTvtPlayFrame() {
-    HWND hwnd = nullptr;
-    EnumThreadWindows(GetCurrentThreadId(), FindTvtPlayFrameEnumProc, reinterpret_cast<LPARAM>(&hwnd));
+static HWND FindTvtPlayFrame()
+{
+  HWND hwnd = nullptr;
+  EnumThreadWindows(GetCurrentThreadId(), FindTvtPlayFrameEnumProc, reinterpret_cast<LPARAM>(&hwnd));
 
-    return hwnd;
+  return hwnd;
 }
 
-static int GetTvtPlayPositionSec(const HWND hwnd) {
-    return static_cast<int>(SendMessage(hwnd, WM_TVTP_GET_POSITION, 0, 0)) / 1000;
+static int GetTvtPlayPositionSec(const HWND hwnd)
+{
+  return static_cast<int>(SendMessage(hwnd, WM_TVTP_GET_POSITION, 0, 0)) / 1000;
 }
 
 #pragma endregion
