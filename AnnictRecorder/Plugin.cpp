@@ -380,8 +380,7 @@ void CAnnictRecorderPlugin::CheckCurrentProgram()
     }
     else
     {
-      PrintDebug(L"チャンネル情報の取得に失敗しました。(サービス ID: {}, 番組名: {})",
-                 Program.ServiceID, Program.pszEventName);
+      PrintDebug(L"チャンネル情報の取得に失敗しました。(サービス ID: {}, 番組名: {})", Program.ServiceID, Program.pszEventName);
     }
 
     if (!IsAnime)
@@ -395,29 +394,9 @@ void CAnnictRecorderPlugin::CheckCurrentProgram()
       return;
     }
 
-    // ChannelType
-    std::optional<Saya::ChannelType> ChannelType = std::nullopt;
-    TVTest::TuningSpaceInfo TuningSpace{};
-    if (m_pApp->GetTuningSpaceInfo(m_pApp->GetTuningSpace(), &TuningSpace))
-    {
-      // チューナー空間名からチャンネルタイプを取得
-      ChannelType = Saya::GetChannelTypeByName(TuningSpace.szName);
-
-      // チューナー空間の enum からチャンネルタイプを取得
-      if (!ChannelType.has_value())
-      {
-        ChannelType = Saya::GetChannelTypeByIndex(TuningSpace.Space);
-      }
-    }
-
-    if (!ChannelType.has_value())
-    {
-      PrintDebug(L"チューニング空間の取得に失敗しました。(サービス ID: {})", Program.ServiceID);
-    }
-
     AnnictRecorder::CreateRecordResult Success{};
     AnnictRecorder::CreateRecordResult Failed{true};
-    for (const auto &result : CreateRecord(m_config, Program, ChannelType, m_annictIds, m_definitions))
+    for (const auto &result : CreateRecord(m_config, Program, m_annictIds, m_definitions))
     {
       if (result.success)
       {
@@ -435,7 +414,7 @@ void CAnnictRecorderPlugin::CheckCurrentProgram()
     {
       m_pApp->AddLog(L"Annict に視聴記録を送信できませんでした。Annict 上に見つからない作品か, しょぼいカレンダーに放送時間が登録されていません。", TVTest::LOG_TYPE_WARNING);
       m_pApp->AddLog(Failed.message.c_str());
-      m_pApp->AddLog(std::format(L"番組名: {}, サービスID: {}", Program.pszEventName, Program.ServiceID).c_str());
+      m_pApp->AddLog(std::format(L"番組名: {}, ネットワークID: {}, サービスID: {}", Program.pszEventName, Channel.NetworkID, Program.ServiceID).c_str());
     }
 
     m_lastRecordResult = Failed.success ? Success : Failed;

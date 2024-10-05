@@ -198,8 +198,7 @@ namespace AnnictRecorder
             {
                 return {
                     false,
-                    std::format(L"Annictとの通信に失敗しました。「{}」を記録できませんでした。",
-                                Multi2Wide(work.title)),
+                    std::format(L"Annictとの通信に失敗しました。「{}」を記録できませんでした。", Multi2Wide(work.title)),
                     work,
                     std::nullopt,
                     std::format(L"https://annict.com/works/{}", work.id),
@@ -256,12 +255,11 @@ namespace AnnictRecorder
     static std::vector<CreateRecordResult> CreateRecord(
         const Config &Config,
         const TVTest::ProgramInfo &Program,
-        const std::optional<const Saya::ChannelType> ChannelType,
         std::map<uint32_t, uint32_t> &AnnictIds,
         const YAML::Node &SayaDefinitions)
     {
         // saya のチャンネル定義
-        const auto ChannelDefinition = FindChannel(SayaDefinitions, ChannelType, Program.ServiceID);
+        const auto ChannelDefinition = Saya::FindChannel(SayaDefinitions, Program.ServiceID);
         if (!ChannelDefinition.has_value())
         {
             PrintDebug(L"saya のチャンネル定義に存在しないチャンネルです。スキップします。(サービス ID: {})", Program.ServiceID);
