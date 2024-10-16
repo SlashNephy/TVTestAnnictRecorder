@@ -1,6 +1,6 @@
 # TVTestAnnictRecorder
 
-[![GitHub Workflow Status](https://img.shields.io/github/workflow/status/SlashNephy/TVTestAnnictRecorder/latest?style=flat-square)](https://github.com/SlashNephy/TVTestAnnictRecorder/actions)
+[![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/SlashNephy/TVTestAnnictRecorder/build-cpp.yml?style=flat-square)](https://github.com/SlashNephy/TVTestAnnictRecorder/actions)
 [![GitHub release (latest by date)](https://img.shields.io/github/v/release/SlashNephy/TVTestAnnictRecorder?style=flat-square)](https://github.com/SlashNephy/TVTestAnnictRecorder/releases)
 
 📝 視聴したアニメを自動で [Annict](https://annict.com/) に記録する TVTest プラグイン (TVTest 0.9.0 以降が必要)
