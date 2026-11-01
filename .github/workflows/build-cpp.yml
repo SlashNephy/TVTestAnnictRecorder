@@ -4,6 +4,8 @@ on:
   push:
     paths:
       - 'AnnictRecorder/**'
+      - '.github/workflows/build-cpp.yml'
+      - 'vcpkg.json'
 
   workflow_dispatch:
 
@@ -29,7 +31,7 @@ jobs:
         uses: lukka/run-vcpkg@v11
         with:
           runVcpkgInstall: true
-          vcpkgGitCommitId: 962e5e39f8a25f42522f51fffc574e05a3efd26b
+          vcpkgGitCommitId: 9eec002df1cd109f8f104cd966a763daf9751489 # 2026.10.16
         env:
           VCPKG_DEFAULT_TRIPLET: ${{ matrix.platform }}-windows
 

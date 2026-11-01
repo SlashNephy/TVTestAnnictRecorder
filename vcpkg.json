@@ -4,7 +4,7 @@
   "version-string": "0.0.1",
   "port-version": 6,
   "homepage": "https://github.com/SlashNephy/TVTestAnnictRecorder",
-  "builtin-baseline": "962e5e39f8a25f42522f51fffc574e05a3efd26b",
+  "builtin-baseline": "9eec002df1cd109f8f104cd966a763daf9751489",
   "dependencies": [
     {
       "name": "cpr",
