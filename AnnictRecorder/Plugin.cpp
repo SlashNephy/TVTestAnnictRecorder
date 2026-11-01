@@ -225,15 +225,15 @@ void CAnnictRecorderPlugin::LoadConfig()
         {
           Arm::LoadArmJson(m_annictIds);
 
-          m_pApp->AddLog(std::format(L"SlashNephy/arm-supplementaryの定義ファイルを読み込みました。(作品数: {})", m_annictIds.size()).c_str());
+          m_pApp->AddLog(std::format(L"kawaiioverflow/armの定義ファイルを読み込みました。(作品数: {})", m_annictIds.size()).c_str());
         }
         catch (...)
         {
           m_lastRecordResult = {
               false,
-              L"SlashNephy/arm-supplementaryの定義ファイルが利用できません。",
+              L"kawaiioverflow/armの定義ファイルが利用できません。",
           };
-          m_pApp->AddLog(std::format(L"SlashNephy/arm-supplementaryの定義ファイルの読み込みに失敗しました。").c_str(), TVTest::LOG_TYPE_ERROR);
+          m_pApp->AddLog(std::format(L"kawaiioverflow/armの定義ファイルの読み込みに失敗しました。").c_str(), TVTest::LOG_TYPE_ERROR);
         }
       });
 
